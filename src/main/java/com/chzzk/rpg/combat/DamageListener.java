@@ -69,6 +69,11 @@ public class DamageListener implements Listener {
 
             if (WeaponData.isWeapon(hand)) {
                 wd = new WeaponData(hand);
+                if (wd.getOwnerUuid() != null && !wd.getOwnerUuid().equals(attackerPlayer.getUniqueId())) {
+                    attackerPlayer.sendMessage("§c이 장비는 귀속되어 있습니다.");
+                    event.setCancelled(true);
+                    return;
+                }
                 cooldownTicks = wd.getCooldownTicks();
                 weaponAtk = wd.getTotalAtk();
             }

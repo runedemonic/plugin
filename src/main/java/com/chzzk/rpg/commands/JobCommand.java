@@ -46,6 +46,7 @@ public class JobCommand implements CommandExecutor {
                 CombatJob cJob = CombatJob.valueOf(jobName);
                 profile.setCombatJob(cJob);
                 profile.recalculateStats();
+                ChzzkRPG.getInstance().getStatsManager().saveProfile(player.getUniqueId());
                 sender.sendMessage("§aYou are now a " + cJob.getDisplayName() + "!");
                 return true;
             } catch (IllegalArgumentException ignored) {
@@ -55,6 +56,7 @@ public class JobCommand implements CommandExecutor {
             try {
                 LifeJob lJob = LifeJob.valueOf(jobName);
                 profile.setLifeJob(lJob);
+                ChzzkRPG.getInstance().getStatsManager().saveProfile(player.getUniqueId());
                 sender.sendMessage("§aYou are now a " + lJob.getDisplayName() + "!");
                 return true;
             } catch (IllegalArgumentException ignored) {

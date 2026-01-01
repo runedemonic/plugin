@@ -77,31 +77,44 @@ public class GuildManager {
             return;
         }
 
+        UUID leaderId = leader.getUniqueId();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement("INSERT INTO guilds (name, leader_uuid) VALUES (?, ?)",
                         java.sql.Statement.RETURN_GENERATED_KEYS);
                 ps.setString(1, name);
-                ps.setString(2, leader.getUniqueId().toString());
+                ps.setString(2, leaderId.toString());
                 ps.executeUpdate();
 
                 ResultSet rs = ps.getGeneratedKeys();
                 if (rs.next()) {
                     int id = rs.getInt(1);
-                    Guild guild = new Guild(id, name, leader.getUniqueId());
-                    guild.addMember(new GuildMember(leader.getUniqueId(), GuildMember.Role.LEADER));
+                    Guild guild = new Guild(id, name, leaderId);
+                    guild.addMember(new GuildMember(leaderId, GuildMember.Role.LEADER));
 
                     guildIdMap.put(id, guild);
-                    playerGuildMap.put(leader.getUniqueId(), id);
+                    playerGuildMap.put(leaderId, id);
 
                     // Add leader to members table
-                    addMemberToDB(id, leader.getUniqueId(), GuildMember.Role.LEADER);
+                    addMemberToDB(id, leaderId, GuildMember.Role.LEADER);
 
-                    leader.sendMessage("§aGuild '" + name + "' created!");
+                    plugin.getServer().getScheduler().runTask(plugin,
+                            () -> {
+                                Player onlineLeader = plugin.getServer().getPlayer(leaderId);
+                                if (onlineLeader != null) {
+                                    onlineLeader.sendMessage("§aGuild '" + name + "' created!");
+                                }
+                            });
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
-                leader.sendMessage("§cFailed to create guild (Name taken?).");
+                plugin.getServer().getScheduler().runTask(plugin,
+                        () -> {
+                            Player onlineLeader = plugin.getServer().getPlayer(leaderId);
+                            if (onlineLeader != null) {
+                                onlineLeader.sendMessage("§cFailed to create guild (Name taken?).");
+                            }
+                        });
             }
         });
     }

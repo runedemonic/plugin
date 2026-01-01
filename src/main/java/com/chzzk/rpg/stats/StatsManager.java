@@ -73,6 +73,7 @@ public class StatsManager implements Listener {
 
                     // Load Stats
                     loadStats(conn, profile);
+                    loadLifeJobs(conn, profile);
 
                 } else {
                     // Create new
@@ -105,6 +106,17 @@ public class StatsManager implements Listener {
                 "INSERT INTO player_stats (uuid) VALUES (?)");
         psStat.setString(1, profile.getUuid().toString());
         psStat.executeUpdate();
+
+        PreparedStatement psLife = conn.prepareStatement(
+                "INSERT INTO life_jobs (uuid, blacksmith_lv, blacksmith_exp, chef_lv, chef_exp, builder_lv, builder_exp) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        psLife.setString(1, profile.getUuid().toString());
+        psLife.setInt(2, profile.getBlacksmithLevel());
+        psLife.setDouble(3, profile.getBlacksmithExp());
+        psLife.setInt(4, profile.getChefLevel());
+        psLife.setDouble(5, profile.getChefExp());
+        psLife.setInt(6, profile.getBuilderLevel());
+        psLife.setDouble(7, profile.getBuilderExp());
+        psLife.executeUpdate();
     }
 
     private void loadStats(Connection conn, PlayerProfile profile) throws SQLException {
@@ -119,6 +131,31 @@ public class StatsManager implements Listener {
             stats.set(StatType.CRIT, rs.getDouble("crit"));
             stats.set(StatType.CRIT_DMG, rs.getDouble("crit_dmg"));
             stats.set(StatType.PEN, rs.getDouble("pen"));
+        }
+    }
+
+    private void loadLifeJobs(Connection conn, PlayerProfile profile) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement("SELECT * FROM life_jobs WHERE uuid = ?");
+        ps.setString(1, profile.getUuid().toString());
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            profile.setBlacksmithLevel(rs.getInt("blacksmith_lv"));
+            profile.setBlacksmithExp(rs.getDouble("blacksmith_exp"));
+            profile.setChefLevel(rs.getInt("chef_lv"));
+            profile.setChefExp(rs.getDouble("chef_exp"));
+            profile.setBuilderLevel(rs.getInt("builder_lv"));
+            profile.setBuilderExp(rs.getDouble("builder_exp"));
+        } else {
+            PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO life_jobs (uuid, blacksmith_lv, blacksmith_exp, chef_lv, chef_exp, builder_lv, builder_exp) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            insert.setString(1, profile.getUuid().toString());
+            insert.setInt(2, profile.getBlacksmithLevel());
+            insert.setDouble(3, profile.getBlacksmithExp());
+            insert.setInt(4, profile.getChefLevel());
+            insert.setDouble(5, profile.getChefExp());
+            insert.setInt(6, profile.getBuilderLevel());
+            insert.setDouble(7, profile.getBuilderExp());
+            insert.executeUpdate();
         }
     }
 
@@ -148,6 +185,17 @@ public class StatsManager implements Listener {
                 psStats.setDouble(6, stats.get(StatType.PEN));
                 psStats.setString(7, uuid.toString());
                 psStats.executeUpdate();
+
+                PreparedStatement psLife = conn.prepareStatement(
+                        "UPDATE life_jobs SET blacksmith_lv=?, blacksmith_exp=?, chef_lv=?, chef_exp=?, builder_lv=?, builder_exp=? WHERE uuid=?");
+                psLife.setInt(1, profile.getBlacksmithLevel());
+                psLife.setDouble(2, profile.getBlacksmithExp());
+                psLife.setInt(3, profile.getChefLevel());
+                psLife.setDouble(4, profile.getChefExp());
+                psLife.setInt(5, profile.getBuilderLevel());
+                psLife.setDouble(6, profile.getBuilderExp());
+                psLife.setString(7, uuid.toString());
+                psLife.executeUpdate();
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Failed to save profile for " + uuid);
