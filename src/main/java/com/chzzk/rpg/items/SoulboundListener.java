@@ -1,6 +1,8 @@
 package com.chzzk.rpg.items;
 
 import com.chzzk.rpg.ChzzkRPG;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +19,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.enchantment.PrepareItemEnchantEvent;
+import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.inventory.PrepareGrindstoneEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.inventory.PrepareSmithingEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
@@ -32,14 +39,19 @@ import org.bukkit.entity.ItemFrame;
 import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.ShulkerBox;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 public class SoulboundListener implements Listener {
 
     private final ChzzkRPG plugin;
     private final Map<UUID, List<ItemStack>> pendingReturns = new ConcurrentHashMap<>();
+    private final File pendingFile;
+    private boolean saveScheduled;
 
     public SoulboundListener(ChzzkRPG plugin) {
         this.plugin = plugin;
+        this.pendingFile = new File(plugin.getDataFolder(), "soulbound_returns.yml");
+        loadPendingReturns();
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -94,6 +106,14 @@ public class SoulboundListener implements Listener {
     }
 
     @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        if (!pendingReturns.containsKey(event.getPlayer().getUniqueId())) {
+            return;
+        }
+        scheduleSave();
+    }
+
+    @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) {
             return;
@@ -111,6 +131,17 @@ public class SoulboundListener implements Listener {
 
         if (event.getAction() == org.bukkit.event.inventory.InventoryAction.COLLECT_TO_CURSOR
                 && !(event.getInventory() instanceof PlayerInventory)) {
+            for (ItemStack stack : event.getInventory().getContents()) {
+                if (!WeaponData.isWeapon(stack)) {
+                    continue;
+                }
+                WeaponData weaponData = new WeaponData(stack);
+                if (weaponData.getOwnerUuid() != null) {
+                    event.setCancelled(true);
+                    event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+                    return;
+                }
+            }
             return;
         }
 
@@ -309,6 +340,50 @@ public class SoulboundListener implements Listener {
     }
 
     @EventHandler
+    public void onPrepareAnvil(PrepareAnvilEvent event) {
+        ItemStack first = event.getInventory().getFirstItem();
+        ItemStack second = event.getInventory().getSecondItem();
+        if (isSoulboundWeapon(first) || isSoulboundWeapon(second)) {
+            event.setResult(null);
+        }
+    }
+
+    @EventHandler
+    public void onPrepareGrindstone(PrepareGrindstoneEvent event) {
+        ItemStack upper = event.getInventory().getUpperItem();
+        ItemStack lower = event.getInventory().getLowerItem();
+        if (isSoulboundWeapon(upper) || isSoulboundWeapon(lower)) {
+            event.setResult(null);
+        }
+    }
+
+    @EventHandler
+    public void onPrepareSmithing(PrepareSmithingEvent event) {
+        ItemStack base = event.getInventory().getInputEquipment();
+        ItemStack addition = event.getInventory().getInputMineral();
+        if (isSoulboundWeapon(base) || isSoulboundWeapon(addition)) {
+            event.setResult(null);
+        }
+    }
+
+    @EventHandler
+    public void onPrepareEnchant(PrepareItemEnchantEvent event) {
+        ItemStack item = event.getItem();
+        if (isSoulboundWeapon(item)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEnchant(EnchantItemEvent event) {
+        ItemStack item = event.getItem();
+        if (isSoulboundWeapon(item)) {
+            event.setCancelled(true);
+            event.getEnchanter().sendMessage("§c귀속 장비는 인챈트할 수 없습니다.");
+        }
+    }
+
+    @EventHandler
     public void onCraft(CraftItemEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) {
             return;
@@ -355,6 +430,47 @@ public class SoulboundListener implements Listener {
         return state instanceof ShulkerBox;
     }
 
+    private boolean isSoulboundWeapon(ItemStack item) {
+        if (!WeaponData.isWeapon(item)) {
+            return false;
+        }
+        WeaponData weaponData = new WeaponData(item);
+        return weaponData.getOwnerUuid() != null;
+    }
+
+    private void loadPendingReturns() {
+        if (!pendingFile.exists()) {
+            return;
+        }
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(pendingFile);
+        for (String key : config.getKeys(false)) {
+            List<ItemStack> items = config.getList(key);
+            if (items == null || items.isEmpty()) {
+                continue;
+            }
+            try {
+                UUID uuid = UUID.fromString(key);
+                pendingReturns.put(uuid, new ArrayList<>(items));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+    }
+
+    private void savePendingReturns() {
+        if (!pendingFile.getParentFile().exists()) {
+            pendingFile.getParentFile().mkdirs();
+        }
+        YamlConfiguration config = new YamlConfiguration();
+        for (Map.Entry<UUID, List<ItemStack>> entry : pendingReturns.entrySet()) {
+            config.set(entry.getKey().toString(), entry.getValue());
+        }
+        try {
+            config.save(pendingFile);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save soulbound returns: " + e.getMessage());
+        }
+    }
+
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
         if (event.getKeepInventory()) {
@@ -377,6 +493,7 @@ public class SoulboundListener implements Listener {
 
         if (!keptItems.isEmpty()) {
             pendingReturns.computeIfAbsent(player.getUniqueId(), key -> new ArrayList<>()).addAll(keptItems);
+            scheduleSave();
         }
     }
 
@@ -387,12 +504,10 @@ public class SoulboundListener implements Listener {
         if (items == null || items.isEmpty()) {
             return;
         }
+        scheduleSave();
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            for (ItemStack item : items) {
-                event.getPlayer().getInventory().addItem(item);
-            }
-            event.getPlayer().sendMessage("§a귀속 장비가 복구되었습니다.");
+            deliverPendingItems(event.getPlayer(), items);
         });
     }
 
@@ -403,12 +518,33 @@ public class SoulboundListener implements Listener {
         if (items == null || items.isEmpty()) {
             return;
         }
+        scheduleSave();
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            for (ItemStack item : items) {
-                event.getPlayer().getInventory().addItem(item);
-            }
-            event.getPlayer().sendMessage("§a귀속 장비가 복구되었습니다.");
+            deliverPendingItems(event.getPlayer(), items);
         });
+    }
+
+    private void deliverPendingItems(Player player, List<ItemStack> items) {
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(items.toArray(new ItemStack[0]));
+        if (!leftovers.isEmpty()) {
+            pendingReturns.computeIfAbsent(player.getUniqueId(), key -> new ArrayList<>())
+                    .addAll(leftovers.values());
+            scheduleSave();
+            player.sendMessage("§e인벤토리가 가득 차서 일부 귀속 장비가 보관되었습니다.");
+        } else {
+            player.sendMessage("§a귀속 장비가 복구되었습니다.");
+        }
+    }
+
+    private void scheduleSave() {
+        if (saveScheduled) {
+            return;
+        }
+        saveScheduled = true;
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            savePendingReturns();
+            saveScheduled = false;
+        }, 20L);
     }
 }

@@ -121,7 +121,7 @@ public class StatsGui implements RpgGui {
             case CRIT:
                 return 1.0; // 1%
             case CRIT_DMG:
-                return 0.05; // 5%
+                return 0.05; // +0.05 to multiplier (e.g., 1.50 -> 1.55)
             default:
                 return 1.0;
         }

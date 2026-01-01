@@ -34,6 +34,9 @@ permissions:
   rpg.use:
     description: Default permission for players
     default: true
+  rpg.land.guildclaim:
+    description: Guild land claim permission
+    default: op
   rpg.admin:
     description: Admin permission
     default: op

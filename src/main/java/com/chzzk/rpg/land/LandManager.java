@@ -62,6 +62,18 @@ public class LandManager {
     }
 
     public void buyClaim(Player player, Chunk chunk) {
+        buyClaim(player, chunk, Claim.ClaimType.PERSONAL, player.getUniqueId().toString());
+    }
+
+    public void buyGuildClaim(Player player, Chunk chunk, int guildId) {
+        if (plugin.getGuildManager() == null || plugin.getGuildManager().getGuildById(guildId) == null) {
+            player.sendMessage("§cGuild not found.");
+            return;
+        }
+        buyClaim(player, chunk, Claim.ClaimType.GUILD, String.valueOf(guildId));
+    }
+
+    private void buyClaim(Player player, Chunk chunk, Claim.ClaimType claimType, String ownerId) {
         if (getClaim(chunk) != null) {
             player.sendMessage("§cThis land is already claimed.");
             return;
@@ -82,7 +94,7 @@ public class LandManager {
         int chunkZ = chunk.getZ();
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            Claim claim = new Claim(worldId, chunkX, chunkZ, Claim.ClaimType.PERSONAL, playerId.toString());
+            Claim claim = new Claim(worldId, chunkX, chunkZ, claimType, ownerId);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
@@ -111,9 +123,12 @@ public class LandManager {
                     Player onlinePlayer = plugin.getServer().getPlayer(playerId);
                     if (onlinePlayer != null) {
                         onlinePlayer.sendMessage("§cError saving claim.");
+                        if (economy != null) {
+                            economy.deposit(onlinePlayer, CLAIM_COST);
+                            onlinePlayer.sendMessage("§aRefunded $" + CLAIM_COST);
+                        }
                     }
                 });
-                // Refund if error? complex loop, skip for now
             }
         });
     }
@@ -126,8 +141,24 @@ public class LandManager {
         }
 
         if (!claim.getOwnerId().equals(player.getUniqueId().toString()) && !player.isOp()) {
-            player.sendMessage("§cYou do not own this land.");
-            return;
+            if (claim.getOwnerType() == Claim.ClaimType.GUILD && plugin.getGuildManager() != null) {
+                com.chzzk.rpg.guilds.Guild guild = plugin.getGuildManager().getGuild(player);
+                if (guild != null && claim.getOwnerId().equals(String.valueOf(guild.getId()))) {
+                    com.chzzk.rpg.guilds.GuildMember member = guild.getMember(player.getUniqueId());
+                    if (member != null && member.getRole() != com.chzzk.rpg.guilds.GuildMember.Role.MEMBER) {
+                        // Guild officer/leader can unclaim
+                    } else {
+                        player.sendMessage("§cOnly guild officers can unclaim.");
+                        return;
+                    }
+                } else {
+                    player.sendMessage("§cYou do not own this land.");
+                    return;
+                }
+            } else {
+                player.sendMessage("§cYou do not own this land.");
+                return;
+            }
         }
 
         UUID playerId = player.getUniqueId();

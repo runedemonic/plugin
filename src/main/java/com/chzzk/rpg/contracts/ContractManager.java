@@ -120,7 +120,15 @@ public class ContractManager {
 
             } catch (SQLException e) {
                 e.printStackTrace();
-                // Refund logic ideally here
+                if (economy != null) {
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        Player onlineEmployer = plugin.getServer().getPlayer(employerId);
+                        if (onlineEmployer != null) {
+                            economy.deposit(onlineEmployer, totalCost);
+                            onlineEmployer.sendMessage("§cContract creation failed. Refunded $" + totalCost);
+                        }
+                    });
+                }
             }
         });
     }
@@ -205,12 +213,26 @@ public class ContractManager {
 
     // Spend from budget
     public boolean spendBudget(Contract contract, double amount) {
-        if (contract.getCurrentBudget() >= amount) {
-            contract.setCurrentBudget(contract.getCurrentBudget() - amount);
-            // Async update? For now just cache update, DB update on completion or periodic
-            return true;
+        if (contract.getCurrentBudget() < amount) {
+            return false;
         }
-        return false;
+
+        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE contracts SET current_budget = current_budget - ? WHERE id = ? AND current_budget >= ?");
+            ps.setDouble(1, amount);
+            ps.setInt(2, contract.getId());
+            ps.setDouble(3, amount);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                return false;
+            }
+            contract.setCurrentBudget(contract.getCurrentBudget() - amount);
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public List<Contract> getOpenContracts() {
