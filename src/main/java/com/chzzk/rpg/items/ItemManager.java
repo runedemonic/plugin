@@ -7,13 +7,20 @@ import org.bukkit.inventory.ItemStack;
 public class ItemManager {
 
     public static ItemStack createWeapon(Material material, String name, double baseAtk) {
+        return createWeapon(material, name, baseAtk, null);
+    }
+
+    public static ItemStack createWeapon(Material material, String name, double baseAtk, java.util.UUID ownerUuid) {
         ItemStack item = new ItemBuilder(material)
                 .name(name)
                 .build();
 
         WeaponData weaponData = new WeaponData(item);
+        weaponData.setWeaponType(WeaponType.SWORD);
+        weaponData.setAttackSpeed(1.0);
         weaponData.setBaseAtk(baseAtk);
         weaponData.setEnhanceLevel(0);
+        weaponData.setOwnerUuid(ownerUuid);
         weaponData.save();
 
         return weaponData.getItem();

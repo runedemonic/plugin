@@ -28,7 +28,29 @@ public class LandCommand implements CommandExecutor {
                 player.sendMessage("§aThis land is WILDERNESS (Unclaimed).");
             } else {
                 player.sendMessage("§6--- Land Info ---");
-                player.sendMessage("§eOwner: §f" + claim.getOwnerId()); // Need to resolve Name from UUID really
+                if (claim.getOwnerType() == Claim.ClaimType.GUILD) {
+                    try {
+                        int guildId = Integer.parseInt(claim.getOwnerId());
+                        com.chzzk.rpg.guilds.Guild guild = ChzzkRPG.getInstance().getGuildManager()
+                                .getGuildById(guildId);
+                        String guildName = guild != null ? guild.getName() : "Unknown Guild";
+                        player.sendMessage("§eOwner: §f" + guildName + " (#" + guildId + ")");
+                    } catch (NumberFormatException e) {
+                        player.sendMessage("§eOwner: §f" + claim.getOwnerId());
+                    }
+                } else {
+                    try {
+                        java.util.UUID ownerUuid = java.util.UUID.fromString(claim.getOwnerId());
+                        String ownerName = org.bukkit.Bukkit.getOfflinePlayer(ownerUuid).getName();
+                        if (ownerName != null) {
+                            player.sendMessage("§eOwner: §f" + ownerName);
+                        } else {
+                            player.sendMessage("§eOwner: §f" + claim.getOwnerId());
+                        }
+                    } catch (IllegalArgumentException e) {
+                        player.sendMessage("§eOwner: §f" + claim.getOwnerId());
+                    }
+                }
                 player.sendMessage("§eType: §f" + claim.getOwnerType());
             }
             return true;
@@ -36,6 +58,43 @@ public class LandCommand implements CommandExecutor {
 
         if (args[0].equalsIgnoreCase("claim")) {
             ChzzkRPG.getInstance().getLandManager().buyClaim(player, chunk);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("guildclaim")) {
+            if (!player.hasPermission("rpg.land.guildclaim")) {
+                player.sendMessage("§cNo permission.");
+                return true;
+            }
+            if (args.length < 2) {
+                player.sendMessage("Usage: /land guildclaim <guildId>");
+                return true;
+            }
+            try {
+                int guildId = Integer.parseInt(args[1]);
+                com.chzzk.rpg.guilds.GuildManager gm = ChzzkRPG.getInstance().getGuildManager();
+                if (gm == null) {
+                    player.sendMessage("§cGuild system not available.");
+                    return true;
+                }
+                com.chzzk.rpg.guilds.Guild guild = gm.getGuild(player);
+                if (guild == null || guild.getId() != guildId) {
+                    player.sendMessage("§cYou are not a member of that guild.");
+                    return true;
+                }
+                com.chzzk.rpg.guilds.GuildMember member = guild.getMember(player.getUniqueId());
+                if (member == null || member.getRole() == com.chzzk.rpg.guilds.GuildMember.Role.MEMBER) {
+                    player.sendMessage("§cOnly guild officers can claim land.");
+                    return true;
+                }
+                if (gm.getGuildById(guildId) == null) {
+                    player.sendMessage("§cGuild not found.");
+                    return true;
+                }
+                ChzzkRPG.getInstance().getLandManager().buyGuildClaim(player, chunk, guildId);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cInvalid guild ID.");
+            }
             return true;
         }
 

@@ -41,7 +41,13 @@ public class LandListener implements Listener {
                 return true;
         }
 
-        // TODO: Guild Check
+        // Guild Check
+        if (claim.getOwnerType() == Claim.ClaimType.GUILD && plugin.getGuildManager() != null) {
+            com.chzzk.rpg.guilds.Guild guild = plugin.getGuildManager().getGuild(player);
+            if (guild != null && claim.getOwnerId().equals(String.valueOf(guild.getId()))) {
+                return true;
+            }
+        }
 
         return false;
     }

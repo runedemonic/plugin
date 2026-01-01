@@ -5,8 +5,10 @@ import com.chzzk.rpg.hooks.VaultHook;
 import com.chzzk.rpg.jobs.LifeJob;
 import com.chzzk.rpg.stats.PlayerProfile;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -20,6 +22,7 @@ public class BuilderManager implements Listener {
 
     private final ChzzkRPG plugin;
     private final Set<UUID> activeBuilders = new HashSet<>();
+    private final Map<UUID, GameMode> previousGameModes = new ConcurrentHashMap<>();
 
     // Simple Cost Map (Should be config)
     private final double DEFAULT_COST = 10.0;
@@ -45,13 +48,15 @@ public class BuilderManager implements Listener {
 
     public void enableBuilderMode(Player player) {
         activeBuilders.add(player.getUniqueId());
+        previousGameModes.putIfAbsent(player.getUniqueId(), player.getGameMode());
         player.setGameMode(GameMode.CREATIVE);
         player.sendMessage("§aBuilder Mode ON. Blocks will cost money.");
     }
 
     public void disableBuilderMode(Player player) {
         activeBuilders.remove(player.getUniqueId());
-        player.setGameMode(GameMode.SURVIVAL); // Or Adventure
+        GameMode previousMode = previousGameModes.remove(player.getUniqueId());
+        player.setGameMode(previousMode != null ? previousMode : GameMode.SURVIVAL);
         player.sendMessage("§cBuilder Mode OFF.");
     }
 

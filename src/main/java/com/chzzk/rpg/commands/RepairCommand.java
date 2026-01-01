@@ -36,6 +36,13 @@ public class RepairCommand implements CommandExecutor {
             player.sendMessage("§cHold an item.");
             return true;
         }
+        if (com.chzzk.rpg.items.WeaponData.isWeapon(item)) {
+            com.chzzk.rpg.items.WeaponData weaponData = new com.chzzk.rpg.items.WeaponData(item);
+            if (!weaponData.isOwnedBy(player.getUniqueId())) {
+                player.sendMessage("§c이 장비는 귀속되어 있습니다.");
+                return true;
+            }
+        }
 
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof Damageable) {
