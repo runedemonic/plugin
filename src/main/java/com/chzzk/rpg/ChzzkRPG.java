@@ -45,6 +45,8 @@ public class ChzzkRPG extends JavaPlugin {
         // Save default config
         saveDefaultConfig();
 
+        com.chzzk.rpg.utils.RpgKeys.init(this);
+
         // Initialize Database
         this.databaseManager = new DatabaseManager(this);
 
@@ -63,6 +65,7 @@ public class ChzzkRPG extends JavaPlugin {
         new com.chzzk.rpg.combat.RangedListener(this);
         new com.chzzk.rpg.land.LandListener(this);
         new com.chzzk.rpg.chef.ChefListener(this);
+        new com.chzzk.rpg.items.SoulboundListener(this);
 
         // Buff Cleanup Task (Every 1s)
         getServer().getScheduler().runTaskTimer(this, () -> {

@@ -22,6 +22,16 @@ public class StatsGui implements RpgGui {
     public StatsGui(Player player) {
         this.player = player;
         this.profile = ChzzkRPG.getInstance().getStatsManager().getProfile(player);
+        if (profile == null) {
+            Inventory errorInventory = Bukkit.createInventory(this, 27, Component.text("Player Stats"));
+            errorInventory.setItem(13, new ItemBuilder(Material.BARRIER)
+                    .name("§cProfile not loaded")
+                    .lore("§7잠시 후 다시 시도해주세요.")
+                    .build());
+            this.inventory = errorInventory;
+            return;
+        }
+
         this.inventory = Bukkit.createInventory(this, 54, Component.text("Player Stats"));
         update();
     }
@@ -78,6 +88,8 @@ public class StatsGui implements RpgGui {
     public void onClick(InventoryClickEvent event) {
         event.setCancelled(true);
         if (event.getCurrentItem() == null)
+            return;
+        if (profile == null)
             return;
 
         int slot = event.getSlot();

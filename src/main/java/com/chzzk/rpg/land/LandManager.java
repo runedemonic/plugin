@@ -76,9 +76,13 @@ public class LandManager {
         if (economy != null)
             economy.withdraw(player, CLAIM_COST);
 
+        UUID playerId = player.getUniqueId();
+        UUID worldId = chunk.getWorld().getUID();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            Claim claim = new Claim(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), Claim.ClaimType.PERSONAL,
-                    player.getUniqueId().toString());
+            Claim claim = new Claim(worldId, chunkX, chunkZ, Claim.ClaimType.PERSONAL, playerId.toString());
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
@@ -92,12 +96,23 @@ public class LandManager {
 
                 // Reload or just put in cache
                 // For simplified flow, just put
-                claims.put(getChunkKey(chunk), claim);
-                player.sendMessage("§aSuccesfully claimed this chunk for $" + CLAIM_COST);
+                claims.put(getChunkKey(worldId, chunkX, chunkZ), claim);
+                plugin.getServer().getScheduler().runTask(plugin,
+                        () -> {
+                            Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                            if (onlinePlayer != null) {
+                                onlinePlayer.sendMessage("§aSuccesfully claimed this chunk for $" + CLAIM_COST);
+                            }
+                        });
 
             } catch (SQLException e) {
                 e.printStackTrace();
-                player.sendMessage("§cError saving claim.");
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                    if (onlinePlayer != null) {
+                        onlinePlayer.sendMessage("§cError saving claim.");
+                    }
+                });
                 // Refund if error? complex loop, skip for now
             }
         });
@@ -115,17 +130,27 @@ public class LandManager {
             return;
         }
 
+        UUID playerId = player.getUniqueId();
+        UUID worldId = claim.getWorldUuid();
+        int chunkX = claim.getChunkX();
+        int chunkZ = claim.getChunkZ();
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM claims WHERE world_uuid=? AND chunk_x=? AND chunk_z=?");
-                ps.setString(1, claim.getWorldUuid().toString());
-                ps.setInt(2, claim.getChunkX());
-                ps.setInt(3, claim.getChunkZ());
+                ps.setString(1, worldId.toString());
+                ps.setInt(2, chunkX);
+                ps.setInt(3, chunkZ);
                 ps.executeUpdate();
 
-                claims.remove(getChunkKey(chunk));
-                player.sendMessage("§aUnclaimed.");
+                claims.remove(getChunkKey(worldId, chunkX, chunkZ));
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                    if (onlinePlayer != null) {
+                        onlinePlayer.sendMessage("§aUnclaimed.");
+                    }
+                });
             } catch (SQLException e) {
                 e.printStackTrace();
             }

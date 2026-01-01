@@ -25,6 +25,10 @@ commands:
     description: Land Management
   contract:
     description: Contract Management
+  repair:
+    description: Repair items (Blacksmith)
+  guild:
+    description: Guild Management
 
 permissions:
   rpg.use:

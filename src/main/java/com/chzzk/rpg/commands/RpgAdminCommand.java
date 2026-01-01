@@ -46,6 +46,8 @@ public class RpgAdminCommand implements CommandExecutor {
                 PlayerProfile profile = ChzzkRPG.getInstance().getStatsManager().getProfile(target);
                 if (profile != null) {
                     profile.setStatPoints(amount);
+                    profile.recalculateStats();
+                    ChzzkRPG.getInstance().getStatsManager().saveProfile(target.getUniqueId());
                     sender.sendMessage("§aSet " + target.getName() + "'s stat points to " + amount);
                 }
             } catch (NumberFormatException e) {
@@ -70,7 +72,8 @@ public class RpgAdminCommand implements CommandExecutor {
             try {
                 double atk = Double.parseDouble(args[2]);
                 org.bukkit.inventory.ItemStack item = com.chzzk.rpg.items.ItemManager
-                        .createWeapon(org.bukkit.Material.DIAMOND_SWORD, "§bStarter Sword", atk);
+                        .createWeapon(org.bukkit.Material.DIAMOND_SWORD, "§bStarter Sword", atk,
+                                target.getUniqueId());
                 target.getInventory().addItem(item);
                 sender.sendMessage("§aGiven weapon with " + atk + " ATK to " + target.getName());
             } catch (NumberFormatException e) {
