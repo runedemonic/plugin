@@ -151,8 +151,7 @@ public class ContractManager {
         contract.setStatus(Contract.ContractStatus.ACTIVE);
         contract.setContractorUuid(builder.getUniqueId());
 
-        updateContractDB(contract);
-        builder.sendMessage("§aYou accepted Contract #" + contractId);
+        updateContractAcceptance(contract, builder.getUniqueId());
     }
 
     public void completeContract(Player employer, int contractId) {
@@ -167,40 +166,89 @@ public class ContractManager {
             return;
         }
 
-        contract.setStatus(Contract.ContractStatus.COMPLETED);
-
-        // Payout to Builder
-        VaultHook economy = plugin.getVaultHook();
-        if (economy != null) {
-            org.bukkit.OfflinePlayer builder = plugin.getServer().getOfflinePlayer(contract.getContractorUuid());
-            economy.deposit(builder, contract.getReward()); // Pay Labor
-
-            // Refund remaining budget
-            if (contract.getCurrentBudget() > 0) {
-                economy.deposit(employer, contract.getCurrentBudget());
-            }
+        if (contract.getContractorUuid() == null) {
+            employer.sendMessage("§cContractor not set.");
+            return;
         }
 
-        updateContractDB(contract);
-        employer.sendMessage("§aContract #" + contractId + " completed.");
-        contracts.remove(contractId); // Remove from active cache
+        contract.setStatus(Contract.ContractStatus.COMPLETED);
+        updateContractCompletion(contract, employer.getUniqueId());
     }
 
-    private void updateContractDB(Contract contract) {
+    private void updateContractAcceptance(Contract contract, UUID builderId) {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            boolean success = false;
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE contracts SET contractor_uuid=?, status=?, current_budget=? WHERE id=?")) {
-                    ps.setString(1,
-                            contract.getContractorUuid() == null ? null : contract.getContractorUuid().toString());
-                    ps.setString(2, contract.getStatus().name());
-                    ps.setDouble(3, contract.getCurrentBudget());
-                    ps.setInt(4, contract.getId());
-                    ps.executeUpdate();
+                        "UPDATE contracts SET contractor_uuid=?, status=? WHERE id=? AND status=?")) {
+                    ps.setString(1, builderId.toString());
+                    ps.setString(2, Contract.ContractStatus.ACTIVE.name());
+                    ps.setInt(3, contract.getId());
+                    ps.setString(4, Contract.ContractStatus.OPEN.name());
+                    success = ps.executeUpdate() > 0;
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+
+            boolean updateSuccess = success;
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                Player builder = plugin.getServer().getPlayer(builderId);
+                if (updateSuccess) {
+                    if (builder != null) {
+                        builder.sendMessage("§aYou accepted Contract #" + contract.getId());
+                    }
+                } else {
+                    contract.setStatus(Contract.ContractStatus.OPEN);
+                    contract.setContractorUuid(null);
+                    if (builder != null) {
+                        builder.sendMessage("§cContract unavailable.");
+                    }
+                }
+            });
+        });
+    }
+
+    private void updateContractCompletion(Contract contract, UUID employerId) {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            boolean success = false;
+            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE contracts SET status=? WHERE id=? AND status=?")) {
+                    ps.setString(1, Contract.ContractStatus.COMPLETED.name());
+                    ps.setInt(2, contract.getId());
+                    ps.setString(3, Contract.ContractStatus.ACTIVE.name());
+                    success = ps.executeUpdate() > 0;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            boolean updateSuccess = success;
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                Player employer = plugin.getServer().getPlayer(employerId);
+                if (!updateSuccess) {
+                    contract.setStatus(Contract.ContractStatus.ACTIVE);
+                    if (employer != null) {
+                        employer.sendMessage("§cCannot complete this contract.");
+                    }
+                    return;
+                }
+
+                VaultHook economy = plugin.getVaultHook();
+                if (economy != null) {
+                    org.bukkit.OfflinePlayer builder = plugin.getServer().getOfflinePlayer(contract.getContractorUuid());
+                    economy.deposit(builder, contract.getReward());
+                    if (contract.getCurrentBudget() > 0) {
+                        economy.deposit(employer, contract.getCurrentBudget());
+                    }
+                }
+
+                if (employer != null) {
+                    employer.sendMessage("§aContract #" + contract.getId() + " completed.");
+                }
+                contracts.remove(contract.getId());
+            });
         });
     }
 
