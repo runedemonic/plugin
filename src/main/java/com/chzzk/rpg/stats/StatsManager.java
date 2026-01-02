@@ -44,9 +44,10 @@ public class StatsManager implements Listener {
     }
 
     public void loadProfile(Player player) {
+        UUID uuid = player.getUniqueId();
+        String name = player.getName();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            UUID uuid = player.getUniqueId();
-            PlayerProfile profile = new PlayerProfile(uuid, player.getName());
+            PlayerProfile profile = new PlayerProfile(uuid, name);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 // Load basic info
@@ -86,7 +87,7 @@ public class StatsManager implements Listener {
                 profiles.put(uuid, profile);
 
             } catch (SQLException e) {
-                plugin.getLogger().severe("Failed to load profile for " + player.getName());
+                plugin.getLogger().severe("Failed to load profile for " + name);
                 e.printStackTrace();
             }
         });
