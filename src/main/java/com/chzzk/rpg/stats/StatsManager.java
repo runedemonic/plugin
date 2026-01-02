@@ -165,43 +165,66 @@ public class StatsManager implements Listener {
         if (profile == null)
             return;
 
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE players SET stat_points=?, combat_job=?, life_job=? WHERE uuid=?");
-                ps.setInt(1, profile.getStatPoints());
-                ps.setString(2, profile.getCombatJob().name());
-                ps.setString(3, profile.getLifeJob().name());
-                ps.setString(4, uuid.toString());
-                ps.executeUpdate();
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> saveProfileSync(uuid, profile));
+    }
 
-                PreparedStatement psStats = conn.prepareStatement(
-                        "UPDATE player_stats SET atk=?, def=?, hp=?, crit=?, crit_dmg=?, pen=? WHERE uuid=?");
-                PlayerStats stats = profile.getBaseStats();
-                psStats.setDouble(1, stats.get(StatType.ATK));
-                psStats.setDouble(2, stats.get(StatType.DEF));
-                psStats.setDouble(3, stats.get(StatType.HP));
-                psStats.setDouble(4, stats.get(StatType.CRIT));
-                psStats.setDouble(5, stats.get(StatType.CRIT_DMG));
-                psStats.setDouble(6, stats.get(StatType.PEN));
-                psStats.setString(7, uuid.toString());
-                psStats.executeUpdate();
+    public void saveAllProfiles() {
+        saveAllProfiles(true);
+    }
 
-                PreparedStatement psLife = conn.prepareStatement(
-                        "UPDATE life_jobs SET blacksmith_lv=?, blacksmith_exp=?, chef_lv=?, chef_exp=?, builder_lv=?, builder_exp=? WHERE uuid=?");
-                psLife.setInt(1, profile.getBlacksmithLevel());
-                psLife.setDouble(2, profile.getBlacksmithExp());
-                psLife.setInt(3, profile.getChefLevel());
-                psLife.setDouble(4, profile.getChefExp());
-                psLife.setInt(5, profile.getBuilderLevel());
-                psLife.setDouble(6, profile.getBuilderExp());
-                psLife.setString(7, uuid.toString());
-                psLife.executeUpdate();
-
-            } catch (SQLException e) {
-                plugin.getLogger().severe("Failed to save profile for " + uuid);
-                e.printStackTrace();
+    public void saveAllProfiles(boolean async) {
+        Runnable task = () -> {
+            int savedCount = 0;
+            for (Map.Entry<UUID, PlayerProfile> entry : profiles.entrySet()) {
+                saveProfileSync(entry.getKey(), entry.getValue());
+                savedCount++;
             }
-        });
+            plugin.getLogger().info("Saved " + savedCount + " profiles.");
+        };
+
+        if (async) {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, task);
+        } else {
+            task.run();
+        }
+    }
+
+    private void saveProfileSync(UUID uuid, PlayerProfile profile) {
+        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE players SET stat_points=?, combat_job=?, life_job=? WHERE uuid=?");
+            ps.setInt(1, profile.getStatPoints());
+            ps.setString(2, profile.getCombatJob().name());
+            ps.setString(3, profile.getLifeJob().name());
+            ps.setString(4, uuid.toString());
+            ps.executeUpdate();
+
+            PreparedStatement psStats = conn.prepareStatement(
+                    "UPDATE player_stats SET atk=?, def=?, hp=?, crit=?, crit_dmg=?, pen=? WHERE uuid=?");
+            PlayerStats stats = profile.getBaseStats();
+            psStats.setDouble(1, stats.get(StatType.ATK));
+            psStats.setDouble(2, stats.get(StatType.DEF));
+            psStats.setDouble(3, stats.get(StatType.HP));
+            psStats.setDouble(4, stats.get(StatType.CRIT));
+            psStats.setDouble(5, stats.get(StatType.CRIT_DMG));
+            psStats.setDouble(6, stats.get(StatType.PEN));
+            psStats.setString(7, uuid.toString());
+            psStats.executeUpdate();
+
+            PreparedStatement psLife = conn.prepareStatement(
+                    "UPDATE life_jobs SET blacksmith_lv=?, blacksmith_exp=?, chef_lv=?, chef_exp=?, builder_lv=?, builder_exp=? WHERE uuid=?");
+            psLife.setInt(1, profile.getBlacksmithLevel());
+            psLife.setDouble(2, profile.getBlacksmithExp());
+            psLife.setInt(3, profile.getChefLevel());
+            psLife.setDouble(4, profile.getChefExp());
+            psLife.setInt(5, profile.getBuilderLevel());
+            psLife.setDouble(6, profile.getBuilderExp());
+            psLife.setString(7, uuid.toString());
+            psLife.executeUpdate();
+
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to save profile for " + uuid);
+            e.printStackTrace();
+        }
     }
 }

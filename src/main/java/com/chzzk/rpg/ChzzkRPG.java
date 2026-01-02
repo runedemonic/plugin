@@ -94,6 +94,9 @@ public class ChzzkRPG extends JavaPlugin {
     @Override
     public void onDisable() {
         // Shutdown logic
+        if (statsManager != null) {
+            statsManager.saveAllProfiles(false);
+        }
         if (databaseManager != null) {
             databaseManager.close();
         }
