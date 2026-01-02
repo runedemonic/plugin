@@ -36,19 +36,20 @@ public class LandManager {
     public void loadClaims() {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement("SELECT * FROM claims");
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    UUID worldId = UUID.fromString(rs.getString("world_uuid"));
-                    int x = rs.getInt("chunk_x");
-                    int z = rs.getInt("chunk_z");
-                    Claim.ClaimType type = Claim.ClaimType.valueOf(rs.getString("owner_type"));
-                    String ownerId = rs.getString("owner_id");
+                try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM claims");
+                        ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        UUID worldId = UUID.fromString(rs.getString("world_uuid"));
+                        int x = rs.getInt("chunk_x");
+                        int z = rs.getInt("chunk_z");
+                        Claim.ClaimType type = Claim.ClaimType.valueOf(rs.getString("owner_type"));
+                        String ownerId = rs.getString("owner_id");
 
-                    Claim claim = new Claim(worldId, x, z, type, ownerId);
-                    claim.setId(rs.getInt("id"));
+                        Claim claim = new Claim(worldId, x, z, type, ownerId);
+                        claim.setId(rs.getInt("id"));
 
-                    claims.put(getChunkKey(worldId, x, z), claim);
+                        claims.put(getChunkKey(worldId, x, z), claim);
+                    }
                 }
                 plugin.getLogger().info("Loaded " + claims.size() + " claims.");
             } catch (SQLException e) {
@@ -97,14 +98,15 @@ public class LandManager {
             Claim claim = new Claim(worldId, chunkX, chunkZ, claimType, ownerId);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO claims (world_uuid, chunk_x, chunk_z, owner_type, owner_id) VALUES (?, ?, ?, ?, ?)");
-                ps.setString(1, claim.getWorldUuid().toString());
-                ps.setInt(2, claim.getChunkX());
-                ps.setInt(3, claim.getChunkZ());
-                ps.setString(4, claim.getOwnerType().name());
-                ps.setString(5, claim.getOwnerId());
-                ps.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO claims (world_uuid, chunk_x, chunk_z, owner_type, owner_id) VALUES (?, ?, ?, ?, ?)")) {
+                    ps.setString(1, claim.getWorldUuid().toString());
+                    ps.setInt(2, claim.getChunkX());
+                    ps.setInt(3, claim.getChunkZ());
+                    ps.setString(4, claim.getOwnerType().name());
+                    ps.setString(5, claim.getOwnerId());
+                    ps.executeUpdate();
+                }
 
                 // Reload or just put in cache
                 // For simplified flow, just put
@@ -168,12 +170,13 @@ public class LandManager {
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(
-                        "DELETE FROM claims WHERE world_uuid=? AND chunk_x=? AND chunk_z=?");
-                ps.setString(1, worldId.toString());
-                ps.setInt(2, chunkX);
-                ps.setInt(3, chunkZ);
-                ps.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM claims WHERE world_uuid=? AND chunk_x=? AND chunk_z=?")) {
+                    ps.setString(1, worldId.toString());
+                    ps.setInt(2, chunkX);
+                    ps.setInt(3, chunkZ);
+                    ps.executeUpdate();
+                }
 
                 claims.remove(getChunkKey(worldId, chunkX, chunkZ));
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
