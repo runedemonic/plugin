@@ -225,6 +225,7 @@ public class ContractManager {
             ps.setDouble(3, amount);
             int updated = ps.executeUpdate();
             if (updated == 0) {
+                plugin.getLogger().warning("Contract budget update failed for id=" + contract.getId());
                 return false;
             }
             contract.setCurrentBudget(contract.getCurrentBudget() - amount);

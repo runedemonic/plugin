@@ -29,10 +29,15 @@ public class LandCommand implements CommandExecutor {
             } else {
                 player.sendMessage("§6--- Land Info ---");
                 if (claim.getOwnerType() == Claim.ClaimType.GUILD) {
+                    com.chzzk.rpg.guilds.GuildManager gm = ChzzkRPG.getInstance().getGuildManager();
+                    if (gm == null) {
+                        player.sendMessage("§eOwner: §fUnknown Guild");
+                        player.sendMessage("§eType: §f" + claim.getOwnerType());
+                        return true;
+                    }
                     try {
                         int guildId = Integer.parseInt(claim.getOwnerId());
-                        com.chzzk.rpg.guilds.Guild guild = ChzzkRPG.getInstance().getGuildManager()
-                                .getGuildById(guildId);
+                        com.chzzk.rpg.guilds.Guild guild = gm.getGuildById(guildId);
                         String guildName = guild != null ? guild.getName() : "Unknown Guild";
                         player.sendMessage("§eOwner: §f" + guildName + " (#" + guildId + ")");
                     } catch (NumberFormatException e) {

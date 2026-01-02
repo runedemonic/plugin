@@ -122,7 +122,9 @@ public class SoulboundListener implements Listener {
         ItemStack cursor = event.getCursor();
         if (WeaponData.isWeapon(cursor)) {
             WeaponData weaponData = new WeaponData(cursor);
-            if (weaponData.getOwnerUuid() != null && !(event.getClickedInventory() instanceof PlayerInventory)) {
+            if (weaponData.getOwnerUuid() != null
+                    && event.getClickedInventory() != null
+                    && !(event.getClickedInventory() instanceof PlayerInventory)) {
                 event.setCancelled(true);
                 event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
                 return;
@@ -145,10 +147,18 @@ public class SoulboundListener implements Listener {
             return;
         }
 
-        if (event.isShiftClick() && !(event.getInventory() instanceof PlayerInventory)) {
-            event.setCancelled(true);
-            event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
-            return;
+        if (event.isShiftClick()
+                && !(event.getInventory() instanceof PlayerInventory)
+                && event.getClickedInventory() instanceof PlayerInventory) {
+            ItemStack shiftItem = event.getCurrentItem();
+            if (WeaponData.isWeapon(shiftItem)) {
+                WeaponData weaponData = new WeaponData(shiftItem);
+                if (weaponData.getOwnerUuid() != null) {
+                    event.setCancelled(true);
+                    event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+                    return;
+                }
+            }
         }
 
         if (!(event.getInventory() instanceof PlayerInventory) && event.getHotbarButton() >= 0) {
@@ -188,8 +198,10 @@ public class SoulboundListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
-        event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+        if (event.getClickedInventory() != null) {
+            event.setCancelled(true);
+            event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+        }
     }
 
     @EventHandler
@@ -208,8 +220,12 @@ public class SoulboundListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
-        event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+        int topSize = event.getView().getTopInventory().getSize();
+        boolean draggingToTop = event.getRawSlots().stream().anyMatch(slot -> slot < topSize);
+        if (draggingToTop) {
+            event.setCancelled(true);
+            event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+        }
     }
 
     @EventHandler
