@@ -40,13 +40,14 @@ import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.ShulkerBox;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.scheduler.BukkitTask;
 
 public class SoulboundListener implements Listener {
 
     private final ChzzkRPG plugin;
     private final Map<UUID, List<ItemStack>> pendingReturns = new ConcurrentHashMap<>();
     private final File pendingFile;
-    private boolean saveScheduled;
+    private BukkitTask saveTask;
 
     public SoulboundListener(ChzzkRPG plugin) {
         this.plugin = plugin;
@@ -491,6 +492,10 @@ public class SoulboundListener implements Listener {
     }
 
     public void flushPendingReturns() {
+        if (saveTask != null) {
+            saveTask.cancel();
+            saveTask = null;
+        }
         savePendingReturns();
     }
 
@@ -561,13 +566,12 @@ public class SoulboundListener implements Listener {
     }
 
     private void scheduleSave() {
-        if (saveScheduled) {
+        if (saveTask != null) {
             return;
         }
-        saveScheduled = true;
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        saveTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             savePendingReturns();
-            saveScheduled = false;
+            saveTask = null;
         }, 20L);
     }
 }
