@@ -40,13 +40,14 @@ import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.ShulkerBox;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.scheduler.BukkitTask;
 
 public class SoulboundListener implements Listener {
 
     private final ChzzkRPG plugin;
     private final Map<UUID, List<ItemStack>> pendingReturns = new ConcurrentHashMap<>();
     private final File pendingFile;
-    private boolean saveScheduled;
+    private BukkitTask saveTask;
 
     public SoulboundListener(ChzzkRPG plugin) {
         this.plugin = plugin;
@@ -119,12 +120,15 @@ public class SoulboundListener implements Listener {
             return;
         }
 
+        Player player = (Player) event.getWhoClicked();
+        boolean clickedPlayerInventory = event.getClickedInventory() instanceof PlayerInventory;
+        boolean clickedTopInventory = event.getClickedInventory() != null && !clickedPlayerInventory;
+
         ItemStack cursor = event.getCursor();
         if (WeaponData.isWeapon(cursor)) {
             WeaponData weaponData = new WeaponData(cursor);
             if (weaponData.getOwnerUuid() != null
-                    && event.getClickedInventory() != null
-                    && !(event.getClickedInventory() instanceof PlayerInventory)) {
+                    && clickedTopInventory) {
                 event.setCancelled(true);
                 event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
                 return;
@@ -138,7 +142,7 @@ public class SoulboundListener implements Listener {
                     continue;
                 }
                 WeaponData weaponData = new WeaponData(stack);
-                if (weaponData.getOwnerUuid() != null) {
+                if (weaponData.getOwnerUuid() != null && !weaponData.isOwnedBy(player.getUniqueId())) {
                     event.setCancelled(true);
                     event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
                     return;
@@ -149,7 +153,7 @@ public class SoulboundListener implements Listener {
 
         if (event.isShiftClick()
                 && !(event.getInventory() instanceof PlayerInventory)
-                && event.getClickedInventory() instanceof PlayerInventory) {
+                && clickedPlayerInventory) {
             ItemStack shiftItem = event.getCurrentItem();
             if (WeaponData.isWeapon(shiftItem)) {
                 WeaponData weaponData = new WeaponData(shiftItem);
@@ -162,7 +166,7 @@ public class SoulboundListener implements Listener {
         }
 
         if (!(event.getInventory() instanceof PlayerInventory) && event.getHotbarButton() >= 0) {
-            PlayerInventory playerInventory = ((Player) event.getWhoClicked()).getInventory();
+            PlayerInventory playerInventory = player.getInventory();
             ItemStack hotbarItem = playerInventory.getItem(event.getHotbarButton());
             if (WeaponData.isWeapon(hotbarItem)) {
                 WeaponData weaponData = new WeaponData(hotbarItem);
@@ -175,15 +179,15 @@ public class SoulboundListener implements Listener {
         }
 
         ItemStack item = event.getCurrentItem();
-        if (event.getClickedInventory() instanceof PlayerInventory) {
+        if (clickedPlayerInventory) {
             return;
         }
 
         if (WeaponData.isWeapon(item)) {
             WeaponData weaponData = new WeaponData(item);
-            if (weaponData.getOwnerUuid() != null) {
+            if (weaponData.getOwnerUuid() != null && !weaponData.isOwnedBy(player.getUniqueId())) {
                 event.setCancelled(true);
-                event.getWhoClicked().sendMessage("§c귀속 장비는 보관할 수 없습니다.");
+                event.getWhoClicked().sendMessage("§c귀속 장비는 회수할 수 없습니다.");
             }
             return;
         }
@@ -487,6 +491,14 @@ public class SoulboundListener implements Listener {
         }
     }
 
+    public void flushPendingReturns() {
+        if (saveTask != null) {
+            saveTask.cancel();
+            saveTask = null;
+        }
+        savePendingReturns();
+    }
+
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
         if (event.getKeepInventory()) {
@@ -554,13 +566,12 @@ public class SoulboundListener implements Listener {
     }
 
     private void scheduleSave() {
-        if (saveScheduled) {
+        if (saveTask != null) {
             return;
         }
-        saveScheduled = true;
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        saveTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             savePendingReturns();
-            saveScheduled = false;
+            saveTask = null;
         }, 20L);
     }
 }
