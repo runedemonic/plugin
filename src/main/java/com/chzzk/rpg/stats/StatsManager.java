@@ -54,6 +54,7 @@ public class StatsManager implements Listener {
                 try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM players WHERE uuid = ?")) {
                     ps.setString(1, uuid.toString());
                     try (ResultSet rs = ps.executeQuery()) {
+
                         if (rs.next()) {
                             profile.setStatPoints(rs.getInt("stat_points"));
 
@@ -152,20 +153,20 @@ public class StatsManager implements Listener {
                     profile.setChefExp(rs.getDouble("chef_exp"));
                     profile.setBuilderLevel(rs.getInt("builder_lv"));
                     profile.setBuilderExp(rs.getDouble("builder_exp"));
-                    return;
+                } else {
+                    try (PreparedStatement insert = conn.prepareStatement(
+                            "INSERT INTO life_jobs (uuid, blacksmith_lv, blacksmith_exp, chef_lv, chef_exp, builder_lv, builder_exp) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                        insert.setString(1, profile.getUuid().toString());
+                        insert.setInt(2, profile.getBlacksmithLevel());
+                        insert.setDouble(3, profile.getBlacksmithExp());
+                        insert.setInt(4, profile.getChefLevel());
+                        insert.setDouble(5, profile.getChefExp());
+                        insert.setInt(6, profile.getBuilderLevel());
+                        insert.setDouble(7, profile.getBuilderExp());
+                        insert.executeUpdate();
+                    }
                 }
             }
-        }
-        try (PreparedStatement insert = conn.prepareStatement(
-                "INSERT INTO life_jobs (uuid, blacksmith_lv, blacksmith_exp, chef_lv, chef_exp, builder_lv, builder_exp) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-            insert.setString(1, profile.getUuid().toString());
-            insert.setInt(2, profile.getBlacksmithLevel());
-            insert.setDouble(3, profile.getBlacksmithExp());
-            insert.setInt(4, profile.getChefLevel());
-            insert.setDouble(5, profile.getChefExp());
-            insert.setInt(6, profile.getBuilderLevel());
-            insert.setDouble(7, profile.getBuilderExp());
-            insert.executeUpdate();
         }
     }
 
@@ -183,6 +184,31 @@ public class StatsManager implements Listener {
                     ps.setString(3, profile.getLifeJob().name());
                     ps.setString(4, uuid.toString());
                     ps.executeUpdate();
+                }
+
+                try (PreparedStatement psStats = conn.prepareStatement(
+                        "UPDATE player_stats SET atk=?, def=?, hp=?, crit=?, crit_dmg=?, pen=? WHERE uuid=?")) {
+                    PlayerStats stats = profile.getBaseStats();
+                    psStats.setDouble(1, stats.get(StatType.ATK));
+                    psStats.setDouble(2, stats.get(StatType.DEF));
+                    psStats.setDouble(3, stats.get(StatType.HP));
+                    psStats.setDouble(4, stats.get(StatType.CRIT));
+                    psStats.setDouble(5, stats.get(StatType.CRIT_DMG));
+                    psStats.setDouble(6, stats.get(StatType.PEN));
+                    psStats.setString(7, uuid.toString());
+                    psStats.executeUpdate();
+                }
+
+                try (PreparedStatement psLife = conn.prepareStatement(
+                        "UPDATE life_jobs SET blacksmith_lv=?, blacksmith_exp=?, chef_lv=?, chef_exp=?, builder_lv=?, builder_exp=? WHERE uuid=?")) {
+                    psLife.setInt(1, profile.getBlacksmithLevel());
+                    psLife.setDouble(2, profile.getBlacksmithExp());
+                    psLife.setInt(3, profile.getChefLevel());
+                    psLife.setDouble(4, profile.getChefExp());
+                    psLife.setInt(5, profile.getBuilderLevel());
+                    psLife.setDouble(6, profile.getBuilderExp());
+                    psLife.setString(7, uuid.toString());
+                    psLife.executeUpdate();
                 }
 
                 try (PreparedStatement psStats = conn.prepareStatement(

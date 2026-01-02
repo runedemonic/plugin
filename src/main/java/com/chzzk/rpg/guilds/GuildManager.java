@@ -25,30 +25,32 @@ public class GuildManager {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 // 1. Load Guilds
-                PreparedStatement ps = conn.prepareStatement("SELECT * FROM guilds");
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    int id = rs.getInt("id");
-                    String name = rs.getString("name");
-                    UUID leader = UUID.fromString(rs.getString("leader_uuid"));
-                    Guild guild = new Guild(id, name, leader);
-                    guild.setLevel(rs.getInt("level"));
-                    guild.setExp(rs.getDouble("exp"));
-                    guildIdMap.put(id, guild);
+                try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM guilds");
+                        ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int id = rs.getInt("id");
+                        String name = rs.getString("name");
+                        UUID leader = UUID.fromString(rs.getString("leader_uuid"));
+                        Guild guild = new Guild(id, name, leader);
+                        guild.setLevel(rs.getInt("level"));
+                        guild.setExp(rs.getDouble("exp"));
+                        guildIdMap.put(id, guild);
+                    }
                 }
 
                 // 2. Load Members
-                ps = conn.prepareStatement("SELECT * FROM guild_members");
-                rs = ps.executeQuery();
-                while (rs.next()) {
-                    int guildId = rs.getInt("guild_id");
-                    UUID uuid = UUID.fromString(rs.getString("player_uuid"));
-                    GuildMember.Role role = GuildMember.Role.valueOf(rs.getString("role"));
+                try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM guild_members");
+                        ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int guildId = rs.getInt("guild_id");
+                        UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                        GuildMember.Role role = GuildMember.Role.valueOf(rs.getString("role"));
 
-                    Guild guild = guildIdMap.get(guildId);
-                    if (guild != null) {
-                        guild.addMember(new GuildMember(uuid, role));
-                        playerGuildMap.put(uuid, guildId);
+                        Guild guild = guildIdMap.get(guildId);
+                        if (guild != null) {
+                            guild.addMember(new GuildMember(uuid, role));
+                            playerGuildMap.put(uuid, guildId);
+                        }
                     }
                 }
                 plugin.getLogger().info("Loaded " + guildIdMap.size() + " guilds.");
@@ -80,31 +82,33 @@ public class GuildManager {
         UUID leaderId = leader.getUniqueId();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement("INSERT INTO guilds (name, leader_uuid) VALUES (?, ?)",
-                        java.sql.Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, name);
-                ps.setString(2, leaderId.toString());
-                ps.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO guilds (name, leader_uuid) VALUES (?, ?)",
+                        java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, name);
+                    ps.setString(2, leaderId.toString());
+                    ps.executeUpdate();
 
-                ResultSet rs = ps.getGeneratedKeys();
-                if (rs.next()) {
-                    int id = rs.getInt(1);
-                    Guild guild = new Guild(id, name, leaderId);
-                    guild.addMember(new GuildMember(leaderId, GuildMember.Role.LEADER));
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            int id = rs.getInt(1);
+                            Guild guild = new Guild(id, name, leaderId);
+                            guild.addMember(new GuildMember(leaderId, GuildMember.Role.LEADER));
 
-                    guildIdMap.put(id, guild);
-                    playerGuildMap.put(leaderId, id);
+                            guildIdMap.put(id, guild);
+                            playerGuildMap.put(leaderId, id);
 
-                    // Add leader to members table
-                    addMemberToDB(id, leaderId, GuildMember.Role.LEADER);
+                            // Add leader to members table
+                            addMemberToDB(id, leaderId, GuildMember.Role.LEADER);
 
-                    plugin.getServer().getScheduler().runTask(plugin,
-                            () -> {
-                                Player onlineLeader = plugin.getServer().getPlayer(leaderId);
-                                if (onlineLeader != null) {
-                                    onlineLeader.sendMessage("§aGuild '" + name + "' created!");
-                                }
-                            });
+                            plugin.getServer().getScheduler().runTask(plugin,
+                                    () -> {
+                                        Player onlineLeader = plugin.getServer().getPlayer(leaderId);
+                                        if (onlineLeader != null) {
+                                            onlineLeader.sendMessage("§aGuild '" + name + "' created!");
+                                        }
+                                    });
+                        }
+                    }
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -172,12 +176,13 @@ public class GuildManager {
 
     private void addMemberToDB(int guildId, UUID uuid, GuildMember.Role role) {
         try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            PreparedStatement ps = conn
-                    .prepareStatement("INSERT INTO guild_members (guild_id, player_uuid, role) VALUES (?, ?, ?)");
-            ps.setInt(1, guildId);
-            ps.setString(2, uuid.toString());
-            ps.setString(3, role.name());
-            ps.executeUpdate();
+            try (PreparedStatement ps = conn
+                    .prepareStatement("INSERT INTO guild_members (guild_id, player_uuid, role) VALUES (?, ?, ?)")) {
+                ps.setInt(1, guildId);
+                ps.setString(2, uuid.toString());
+                ps.setString(3, role.name());
+                ps.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
