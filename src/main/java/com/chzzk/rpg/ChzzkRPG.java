@@ -38,6 +38,9 @@ public class ChzzkRPG extends JavaPlugin {
     @Getter
     private com.chzzk.rpg.guilds.GuildManager guildManager;
 
+    @Getter
+    private com.chzzk.rpg.items.SoulboundListener soulboundListener;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -65,7 +68,7 @@ public class ChzzkRPG extends JavaPlugin {
         new com.chzzk.rpg.combat.RangedListener(this);
         new com.chzzk.rpg.land.LandListener(this);
         new com.chzzk.rpg.chef.ChefListener(this);
-        new com.chzzk.rpg.items.SoulboundListener(this);
+        this.soulboundListener = new com.chzzk.rpg.items.SoulboundListener(this);
 
         // Buff Cleanup Task (Every 1s)
         getServer().getScheduler().runTaskTimer(this, () -> {
@@ -94,8 +97,8 @@ public class ChzzkRPG extends JavaPlugin {
     @Override
     public void onDisable() {
         // Shutdown logic
-        if (statsManager != null) {
-            statsManager.saveAllProfiles(false);
+        if (soulboundListener != null) {
+            soulboundListener.flushPendingReturns();
         }
         if (databaseManager != null) {
             databaseManager.close();
