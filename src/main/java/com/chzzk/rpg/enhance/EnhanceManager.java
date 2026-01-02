@@ -67,6 +67,10 @@ public class EnhanceManager {
         }
 
         WeaponData wd = new WeaponData(weapon);
+        if (!wd.isOwnedBy(player.getUniqueId())) {
+            player.sendMessage(Component.text("§c이 장비는 귀속되어 있습니다."));
+            return;
+        }
         int currentLevel = wd.getEnhanceLevel();
 
         // Calculate Bonus from Job

@@ -69,6 +69,11 @@ public class DamageListener implements Listener {
 
             if (WeaponData.isWeapon(hand)) {
                 wd = new WeaponData(hand);
+                if (wd.getOwnerUuid() != null && !wd.getOwnerUuid().equals(attackerPlayer.getUniqueId())) {
+                    attackerPlayer.sendMessage("§c이 장비는 귀속되어 있습니다.");
+                    event.setCancelled(true);
+                    return;
+                }
                 cooldownTicks = wd.getCooldownTicks();
                 weaponAtk = wd.getTotalAtk();
             }
@@ -88,8 +93,9 @@ public class DamageListener implements Listener {
         double playerAtk = attackerProfile.getTotalStats().get(StatType.ATK);
         // double weaponAtk already set
         double critRate = attackerProfile.getTotalStats().get(StatType.CRIT);
-        double critDmg = attackerProfile.getTotalStats().get(StatType.CRIT_DMG);
+        double critDmg = Math.max(1.0, attackerProfile.getTotalStats().get(StatType.CRIT_DMG));
         double pen = attackerProfile.getTotalStats().get(StatType.PEN);
+        pen = Math.max(0.0, Math.min(100.0, pen));
 
         // Total Attack
         double totalAtk = playerAtk + weaponAtk;

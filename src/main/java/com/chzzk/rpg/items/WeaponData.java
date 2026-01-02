@@ -26,6 +26,7 @@ public class WeaponData {
     private double baseAtk;
     private double attackSpeed; // APS
     private int enhanceLevel;
+    private java.util.UUID ownerUuid;
     private PlayerStats bonusStats;
 
     private static final Gson gson = new Gson();
@@ -52,6 +53,8 @@ public class WeaponData {
 
         String typeStr = pdc.get(RpgKeys.WEAPON_TYPE, PersistentDataType.STRING);
         this.weaponType = typeStr != null ? WeaponType.valueOf(typeStr) : WeaponType.NONE;
+        String ownerStr = pdc.get(RpgKeys.OWNER_UUID, PersistentDataType.STRING);
+        this.ownerUuid = ownerStr != null ? java.util.UUID.fromString(ownerStr) : null;
 
         // Load Bonus Stats from JSON if exists, otherwise default
     }
@@ -64,6 +67,11 @@ public class WeaponData {
         pdc.set(RpgKeys.ATTACK_SPEED, PersistentDataType.DOUBLE, attackSpeed);
         pdc.set(RpgKeys.ENHANCE_LEVEL, PersistentDataType.INTEGER, enhanceLevel);
         pdc.set(RpgKeys.WEAPON_TYPE, PersistentDataType.STRING, weaponType.name());
+        if (ownerUuid != null) {
+            pdc.set(RpgKeys.OWNER_UUID, PersistentDataType.STRING, ownerUuid.toString());
+        } else {
+            pdc.remove(RpgKeys.OWNER_UUID);
+        }
 
         // Update Lore
         updateLore(meta);
@@ -88,6 +96,11 @@ public class WeaponData {
         }
 
         lore.add(Component.text("§7공격 속도: §f" + attackSpeed + " APS"));
+        if (ownerUuid != null) {
+            String ownerName = org.bukkit.Bukkit.getOfflinePlayer(ownerUuid).getName();
+            String display = ownerName != null ? ownerName : ownerUuid.toString();
+            lore.add(Component.text("§7귀속: §f" + display));
+        }
 
         lore.add(Component.text(""));
         // Add Bonus Stats
@@ -117,5 +130,9 @@ public class WeaponData {
 
     public int getCooldownTicks() {
         return (int) Math.round(20.0 / attackSpeed);
+    }
+
+    public boolean isOwnedBy(java.util.UUID uuid) {
+        return ownerUuid == null || ownerUuid.equals(uuid);
     }
 }

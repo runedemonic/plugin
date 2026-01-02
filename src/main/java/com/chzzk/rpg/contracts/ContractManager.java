@@ -83,18 +83,22 @@ public class ContractManager {
         }
 
         // 3. Create & Save
+        UUID employerId = employer.getUniqueId();
+        UUID worldId = chunk.getWorld().getUID();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            Contract contract = new Contract(employer.getUniqueId(), chunk.getWorld().getUID(), chunk.getX(),
-                    chunk.getZ(), reward, budget);
+            Contract contract = new Contract(employerId, worldId, chunkX, chunkZ, reward, budget);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO contracts (employer_uuid, world_uuid, chunk_x, chunk_z, reward, budget, current_budget, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         java.sql.Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, contract.getEmployerUuid().toString());
-                ps.setString(2, contract.getWorldUuid().toString());
-                ps.setInt(3, contract.getChunkX());
-                ps.setInt(4, contract.getChunkZ());
+                ps.setString(1, employerId.toString());
+                ps.setString(2, worldId.toString());
+                ps.setInt(3, chunkX);
+                ps.setInt(4, chunkZ);
                 ps.setDouble(5, contract.getReward());
                 ps.setDouble(6, contract.getBudget());
                 ps.setDouble(7, contract.getCurrentBudget());
@@ -105,12 +109,26 @@ public class ContractManager {
                 if (rs.next()) {
                     contract.setId(rs.getInt(1));
                     contracts.put(contract.getId(), contract);
-                    employer.sendMessage("§aContract #" + contract.getId() + " created!");
+                    plugin.getServer().getScheduler().runTask(plugin,
+                            () -> {
+                                Player onlineEmployer = plugin.getServer().getPlayer(employerId);
+                                if (onlineEmployer != null) {
+                                    onlineEmployer.sendMessage("§aContract #" + contract.getId() + " created!");
+                                }
+                            });
                 }
 
             } catch (SQLException e) {
                 e.printStackTrace();
-                // Refund logic ideally here
+                if (economy != null) {
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        Player onlineEmployer = plugin.getServer().getPlayer(employerId);
+                        if (onlineEmployer != null) {
+                            economy.deposit(onlineEmployer, totalCost);
+                            onlineEmployer.sendMessage("§cContract creation failed. Refunded $" + totalCost);
+                        }
+                    });
+                }
             }
         });
     }
@@ -195,12 +213,27 @@ public class ContractManager {
 
     // Spend from budget
     public boolean spendBudget(Contract contract, double amount) {
-        if (contract.getCurrentBudget() >= amount) {
-            contract.setCurrentBudget(contract.getCurrentBudget() - amount);
-            // Async update? For now just cache update, DB update on completion or periodic
-            return true;
+        if (contract.getCurrentBudget() < amount) {
+            return false;
         }
-        return false;
+
+        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE contracts SET current_budget = current_budget - ? WHERE id = ? AND current_budget >= ?");
+            ps.setDouble(1, amount);
+            ps.setInt(2, contract.getId());
+            ps.setDouble(3, amount);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                plugin.getLogger().warning("Contract budget update failed for id=" + contract.getId());
+                return false;
+            }
+            contract.setCurrentBudget(contract.getCurrentBudget() - amount);
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public List<Contract> getOpenContracts() {

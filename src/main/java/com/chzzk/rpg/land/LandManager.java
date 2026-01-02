@@ -62,6 +62,18 @@ public class LandManager {
     }
 
     public void buyClaim(Player player, Chunk chunk) {
+        buyClaim(player, chunk, Claim.ClaimType.PERSONAL, player.getUniqueId().toString());
+    }
+
+    public void buyGuildClaim(Player player, Chunk chunk, int guildId) {
+        if (plugin.getGuildManager() == null || plugin.getGuildManager().getGuildById(guildId) == null) {
+            player.sendMessage("§cGuild not found.");
+            return;
+        }
+        buyClaim(player, chunk, Claim.ClaimType.GUILD, String.valueOf(guildId));
+    }
+
+    private void buyClaim(Player player, Chunk chunk, Claim.ClaimType claimType, String ownerId) {
         if (getClaim(chunk) != null) {
             player.sendMessage("§cThis land is already claimed.");
             return;
@@ -76,9 +88,13 @@ public class LandManager {
         if (economy != null)
             economy.withdraw(player, CLAIM_COST);
 
+        UUID playerId = player.getUniqueId();
+        UUID worldId = chunk.getWorld().getUID();
+        int chunkX = chunk.getX();
+        int chunkZ = chunk.getZ();
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            Claim claim = new Claim(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), Claim.ClaimType.PERSONAL,
-                    player.getUniqueId().toString());
+            Claim claim = new Claim(worldId, chunkX, chunkZ, claimType, ownerId);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
@@ -92,13 +108,27 @@ public class LandManager {
 
                 // Reload or just put in cache
                 // For simplified flow, just put
-                claims.put(getChunkKey(chunk), claim);
-                player.sendMessage("§aSuccesfully claimed this chunk for $" + CLAIM_COST);
+                claims.put(getChunkKey(worldId, chunkX, chunkZ), claim);
+                plugin.getServer().getScheduler().runTask(plugin,
+                        () -> {
+                            Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                            if (onlinePlayer != null) {
+                                onlinePlayer.sendMessage("§aSuccesfully claimed this chunk for $" + CLAIM_COST);
+                            }
+                        });
 
             } catch (SQLException e) {
                 e.printStackTrace();
-                player.sendMessage("§cError saving claim.");
-                // Refund if error? complex loop, skip for now
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                    if (onlinePlayer != null) {
+                        onlinePlayer.sendMessage("§cError saving claim.");
+                        if (economy != null) {
+                            economy.deposit(onlinePlayer, CLAIM_COST);
+                            onlinePlayer.sendMessage("§aRefunded $" + CLAIM_COST);
+                        }
+                    }
+                });
             }
         });
     }
@@ -111,21 +141,47 @@ public class LandManager {
         }
 
         if (!claim.getOwnerId().equals(player.getUniqueId().toString()) && !player.isOp()) {
-            player.sendMessage("§cYou do not own this land.");
-            return;
+            if (claim.getOwnerType() == Claim.ClaimType.GUILD && plugin.getGuildManager() != null) {
+                com.chzzk.rpg.guilds.Guild guild = plugin.getGuildManager().getGuild(player);
+                if (guild != null && claim.getOwnerId().equals(String.valueOf(guild.getId()))) {
+                    com.chzzk.rpg.guilds.GuildMember member = guild.getMember(player.getUniqueId());
+                    if (member != null && member.getRole() != com.chzzk.rpg.guilds.GuildMember.Role.MEMBER) {
+                        // Guild officer/leader can unclaim
+                    } else {
+                        player.sendMessage("§cOnly guild officers can unclaim.");
+                        return;
+                    }
+                } else {
+                    player.sendMessage("§cYou do not own this land.");
+                    return;
+                }
+            } else {
+                player.sendMessage("§cYou do not own this land.");
+                return;
+            }
         }
+
+        UUID playerId = player.getUniqueId();
+        UUID worldId = claim.getWorldUuid();
+        int chunkX = claim.getChunkX();
+        int chunkZ = claim.getChunkZ();
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM claims WHERE world_uuid=? AND chunk_x=? AND chunk_z=?");
-                ps.setString(1, claim.getWorldUuid().toString());
-                ps.setInt(2, claim.getChunkX());
-                ps.setInt(3, claim.getChunkZ());
+                ps.setString(1, worldId.toString());
+                ps.setInt(2, chunkX);
+                ps.setInt(3, chunkZ);
                 ps.executeUpdate();
 
-                claims.remove(getChunkKey(chunk));
-                player.sendMessage("§aUnclaimed.");
+                claims.remove(getChunkKey(worldId, chunkX, chunkZ));
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player onlinePlayer = plugin.getServer().getPlayer(playerId);
+                    if (onlinePlayer != null) {
+                        onlinePlayer.sendMessage("§aUnclaimed.");
+                    }
+                });
             } catch (SQLException e) {
                 e.printStackTrace();
             }

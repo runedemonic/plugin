@@ -22,6 +22,16 @@ public class StatsGui implements RpgGui {
     public StatsGui(Player player) {
         this.player = player;
         this.profile = ChzzkRPG.getInstance().getStatsManager().getProfile(player);
+        if (profile == null) {
+            Inventory errorInventory = Bukkit.createInventory(this, 27, Component.text("Player Stats"));
+            errorInventory.setItem(13, new ItemBuilder(Material.BARRIER)
+                    .name("§cProfile not loaded")
+                    .lore("§7잠시 후 다시 시도해주세요.")
+                    .build());
+            this.inventory = errorInventory;
+            return;
+        }
+
         this.inventory = Bukkit.createInventory(this, 54, Component.text("Player Stats"));
         update();
     }
@@ -79,6 +89,8 @@ public class StatsGui implements RpgGui {
         event.setCancelled(true);
         if (event.getCurrentItem() == null)
             return;
+        if (profile == null)
+            return;
 
         int slot = event.getSlot();
         // Check if plus button
@@ -109,7 +121,7 @@ public class StatsGui implements RpgGui {
             case CRIT:
                 return 1.0; // 1%
             case CRIT_DMG:
-                return 0.05; // 5%
+                return 0.05; // +0.05 to multiplier (e.g., 1.50 -> 1.55)
             default:
                 return 1.0;
         }

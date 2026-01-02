@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.io.File;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import lombok.Getter;
@@ -57,6 +59,10 @@ public class DatabaseManager {
     }
 
     private void initSchema() {
+        String type = plugin.getConfig().getString("database.type", "sqlite");
+        String idType = type.equalsIgnoreCase("mysql")
+                ? "INT AUTO_INCREMENT PRIMARY KEY"
+                : "INTEGER PRIMARY KEY AUTOINCREMENT";
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             // Initialize Tables based on plan.md
 
@@ -96,8 +102,7 @@ public class DatabaseManager {
 
             // 4. Claims
             stmt.execute("CREATE TABLE IF NOT EXISTS claims (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " + // SQLite specific, Use AUTO_INCREMENT for MySQL
-                                                               // compatibility adjustment later if needed
+                    "id " + idType + ", " +
                     "world_uuid VARCHAR(36), " +
                     "chunk_x INT, " +
                     "chunk_z INT, " +
@@ -109,7 +114,7 @@ public class DatabaseManager {
 
             // 5. Contracts
             stmt.execute("CREATE TABLE IF NOT EXISTS contracts (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "id " + idType + ", " +
                     "employer_uuid VARCHAR(36), " +
                     "contractor_uuid VARCHAR(36), " +
                     "world_uuid VARCHAR(36), " +
@@ -124,7 +129,7 @@ public class DatabaseManager {
 
             // 6. Guilds
             stmt.execute("CREATE TABLE IF NOT EXISTS guilds (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "id " + idType + ", " +
                     "name VARCHAR(32) UNIQUE, " +
                     "leader_uuid VARCHAR(36), " +
                     "level INT DEFAULT 1, " +
@@ -140,9 +145,36 @@ public class DatabaseManager {
                     "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                     ");");
 
+            stmt.execute("CREATE TABLE IF NOT EXISTS schema_version (" +
+                    "id INT PRIMARY KEY, " +
+                    "version INT NOT NULL" +
+                    ");");
+            ensureSchemaVersion(conn);
+
         } catch (SQLException e) {
             plugin.getLogger().severe("Failed to initialize database schema: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void ensureSchemaVersion(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery("SELECT version FROM schema_version LIMIT 1")) {
+                if (rs.next()) {
+                    return;
+                }
+            }
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement("INSERT INTO schema_version (id, version) VALUES (?, ?)")) {
+            ps.setInt(1, 1);
+            ps.setInt(2, 1);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            String state = e.getSQLState();
+            if (state == null || !state.startsWith("23")) {
+                throw e;
+            }
         }
     }
 

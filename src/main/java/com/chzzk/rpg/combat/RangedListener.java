@@ -45,6 +45,10 @@ public class RangedListener implements Listener {
         WeaponData wd = new WeaponData(item);
         if (wd.getWeaponType() != WeaponType.RANGED)
             return;
+        if (wd.getOwnerUuid() != null && !wd.getOwnerUuid().equals(player.getUniqueId())) {
+            player.sendMessage("§c이 장비는 귀속되어 있습니다.");
+            return;
+        }
 
         event.setCancelled(true); // Prevent vanilla interaction (e.g. blocking, bow draw)
 
