@@ -100,6 +100,9 @@ public class ChzzkRPG extends JavaPlugin {
         if (soulboundListener != null) {
             soulboundListener.flushPendingReturns();
         }
+        if (statsManager != null) {
+            statsManager.saveAllProfiles(false);
+        }
         if (databaseManager != null) {
             databaseManager.close();
         }
