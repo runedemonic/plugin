@@ -28,28 +28,29 @@ public class ContractManager {
     public void loadContracts() {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn
+                try (PreparedStatement ps = conn
                         .prepareStatement("SELECT * FROM contracts WHERE status IN ('OPEN', 'ACTIVE')");
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    UUID employer = UUID.fromString(rs.getString("employer_uuid"));
-                    UUID world = UUID.fromString(rs.getString("world_uuid"));
-                    int x = rs.getInt("chunk_x");
-                    int z = rs.getInt("chunk_z");
-                    double reward = rs.getDouble("reward");
-                    double budget = rs.getDouble("budget");
+                        ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        UUID employer = UUID.fromString(rs.getString("employer_uuid"));
+                        UUID world = UUID.fromString(rs.getString("world_uuid"));
+                        int x = rs.getInt("chunk_x");
+                        int z = rs.getInt("chunk_z");
+                        double reward = rs.getDouble("reward");
+                        double budget = rs.getDouble("budget");
 
-                    Contract contract = new Contract(employer, world, x, z, reward, budget);
-                    contract.setId(rs.getInt("id"));
-                    contract.setCurrentBudget(rs.getDouble("current_budget"));
-                    contract.setStatus(Contract.ContractStatus.valueOf(rs.getString("status")));
+                        Contract contract = new Contract(employer, world, x, z, reward, budget);
+                        contract.setId(rs.getInt("id"));
+                        contract.setCurrentBudget(rs.getDouble("current_budget"));
+                        contract.setStatus(Contract.ContractStatus.valueOf(rs.getString("status")));
 
-                    String contractorStr = rs.getString("contractor_uuid");
-                    if (contractorStr != null) {
-                        contract.setContractorUuid(UUID.fromString(contractorStr));
+                        String contractorStr = rs.getString("contractor_uuid");
+                        if (contractorStr != null) {
+                            contract.setContractorUuid(UUID.fromString(contractorStr));
+                        }
+
+                        contracts.put(contract.getId(), contract);
                     }
-
-                    contracts.put(contract.getId(), contract);
                 }
                 plugin.getLogger().info("Loaded " + contracts.size() + " active contracts.");
             } catch (SQLException e) {
@@ -92,30 +93,32 @@ public class ContractManager {
             Contract contract = new Contract(employerId, worldId, chunkX, chunkZ, reward, budget);
 
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(
+                try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO contracts (employer_uuid, world_uuid, chunk_x, chunk_z, reward, budget, current_budget, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        java.sql.Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, employerId.toString());
-                ps.setString(2, worldId.toString());
-                ps.setInt(3, chunkX);
-                ps.setInt(4, chunkZ);
-                ps.setDouble(5, contract.getReward());
-                ps.setDouble(6, contract.getBudget());
-                ps.setDouble(7, contract.getCurrentBudget());
-                ps.setString(8, contract.getStatus().name());
-                ps.executeUpdate();
+                        java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, employerId.toString());
+                    ps.setString(2, worldId.toString());
+                    ps.setInt(3, chunkX);
+                    ps.setInt(4, chunkZ);
+                    ps.setDouble(5, contract.getReward());
+                    ps.setDouble(6, contract.getBudget());
+                    ps.setDouble(7, contract.getCurrentBudget());
+                    ps.setString(8, contract.getStatus().name());
+                    ps.executeUpdate();
 
-                ResultSet rs = ps.getGeneratedKeys();
-                if (rs.next()) {
-                    contract.setId(rs.getInt(1));
-                    contracts.put(contract.getId(), contract);
-                    plugin.getServer().getScheduler().runTask(plugin,
-                            () -> {
-                                Player onlineEmployer = plugin.getServer().getPlayer(employerId);
-                                if (onlineEmployer != null) {
-                                    onlineEmployer.sendMessage("§aContract #" + contract.getId() + " created!");
-                                }
-                            });
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            contract.setId(rs.getInt(1));
+                            contracts.put(contract.getId(), contract);
+                            plugin.getServer().getScheduler().runTask(plugin,
+                                    () -> {
+                                        Player onlineEmployer = plugin.getServer().getPlayer(employerId);
+                                        if (onlineEmployer != null) {
+                                            onlineEmployer.sendMessage("§aContract #" + contract.getId() + " created!");
+                                        }
+                                    });
+                        }
+                    }
                 }
 
             } catch (SQLException e) {
@@ -186,13 +189,15 @@ public class ContractManager {
     private void updateContractDB(Contract contract) {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE contracts SET contractor_uuid=?, status=?, current_budget=? WHERE id=?");
-                ps.setString(1, contract.getContractorUuid() == null ? null : contract.getContractorUuid().toString());
-                ps.setString(2, contract.getStatus().name());
-                ps.setDouble(3, contract.getCurrentBudget());
-                ps.setInt(4, contract.getId());
-                ps.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE contracts SET contractor_uuid=?, status=?, current_budget=? WHERE id=?")) {
+                    ps.setString(1,
+                            contract.getContractorUuid() == null ? null : contract.getContractorUuid().toString());
+                    ps.setString(2, contract.getStatus().name());
+                    ps.setDouble(3, contract.getCurrentBudget());
+                    ps.setInt(4, contract.getId());
+                    ps.executeUpdate();
+                }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -217,23 +222,29 @@ public class ContractManager {
             return false;
         }
 
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            PreparedStatement ps = conn.prepareStatement(
-                    "UPDATE contracts SET current_budget = current_budget - ? WHERE id = ? AND current_budget >= ?");
-            ps.setDouble(1, amount);
-            ps.setInt(2, contract.getId());
-            ps.setDouble(3, amount);
-            int updated = ps.executeUpdate();
-            if (updated == 0) {
-                plugin.getLogger().warning("Contract budget update failed for id=" + contract.getId());
-                return false;
+        contract.setCurrentBudget(contract.getCurrentBudget() - amount);
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = plugin.getDatabaseManager().getConnection();
+                    PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE contracts SET current_budget = current_budget - ? WHERE id = ? AND current_budget >= ?")) {
+                ps.setDouble(1, amount);
+                ps.setInt(2, contract.getId());
+                ps.setDouble(3, amount);
+                int updated = ps.executeUpdate();
+                if (updated == 0) {
+                    plugin.getLogger().warning("Contract budget update failed for id=" + contract.getId());
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        contract.setCurrentBudget(contract.getCurrentBudget() + amount);
+                    });
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    contract.setCurrentBudget(contract.getCurrentBudget() + amount);
+                });
             }
-            contract.setCurrentBudget(contract.getCurrentBudget() - amount);
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
+        });
+        return true;
     }
 
     public List<Contract> getOpenContracts() {
