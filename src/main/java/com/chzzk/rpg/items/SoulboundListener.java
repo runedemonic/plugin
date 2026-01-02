@@ -458,13 +458,14 @@ public class SoulboundListener implements Listener {
         return weaponData.getOwnerUuid() != null;
     }
 
+    @SuppressWarnings("unchecked")
     private void loadPendingReturns() {
         if (!pendingFile.exists()) {
             return;
         }
         YamlConfiguration config = YamlConfiguration.loadConfiguration(pendingFile);
         for (String key : config.getKeys(false)) {
-            List<ItemStack> items = config.getList(key);
+            List<ItemStack> items = (List<ItemStack>) config.getList(key);
             if (items == null || items.isEmpty()) {
                 continue;
             }

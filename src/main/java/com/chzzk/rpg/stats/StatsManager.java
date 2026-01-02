@@ -211,30 +211,12 @@ public class StatsManager implements Listener {
                     psLife.executeUpdate();
                 }
 
-                try (PreparedStatement psStats = conn.prepareStatement(
-                        "UPDATE player_stats SET atk=?, def=?, hp=?, crit=?, crit_dmg=?, pen=? WHERE uuid=?")) {
-                    PlayerStats stats = profile.getBaseStats();
-                    psStats.setDouble(1, stats.get(StatType.ATK));
-                    psStats.setDouble(2, stats.get(StatType.DEF));
-                    psStats.setDouble(3, stats.get(StatType.HP));
-                    psStats.setDouble(4, stats.get(StatType.CRIT));
-                    psStats.setDouble(5, stats.get(StatType.CRIT_DMG));
-                    psStats.setDouble(6, stats.get(StatType.PEN));
-                    psStats.setString(7, uuid.toString());
-                    psStats.executeUpdate();
-                }
-
-                try (PreparedStatement psLife = conn.prepareStatement(
-                        "UPDATE life_jobs SET blacksmith_lv=?, blacksmith_exp=?, chef_lv=?, chef_exp=?, builder_lv=?, builder_exp=? WHERE uuid=?")) {
-                    psLife.setInt(1, profile.getBlacksmithLevel());
-                    psLife.setDouble(2, profile.getBlacksmithExp());
-                    psLife.setInt(3, profile.getChefLevel());
-                    psLife.setDouble(4, profile.getChefExp());
-                    psLife.setInt(5, profile.getBuilderLevel());
-                    psLife.setDouble(6, profile.getBuilderExp());
-                    psLife.setString(7, uuid.toString());
-                    psLife.executeUpdate();
-                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Failed to save profile for " + uuid);
+                e.printStackTrace();
+            }
+        });
+    }
 
     public void saveAllProfiles() {
         saveAllProfiles(true);
