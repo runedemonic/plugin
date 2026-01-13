@@ -19,3 +19,31 @@ database:
   connection-timeout: 30000
 
 # Game Settings will go here
+
+compatibility:
+  multiverse:
+    # Only allow land claims in these worlds (empty = allow all).
+    land-claim-worlds: []
+    # Only allow random teleport in these worlds (empty = allow all).
+    rtp-worlds: []
+  worldguard:
+    # Commands restricted by WorldGuard flag "chzzk-rpg-commands"
+    # Example: deny in region -> /rg flag <region> chzzk-rpg-commands deny
+    restricted-commands:
+      - rpg
+      - stats
+      - rpgadmin
+      - enhance
+      - job
+      - builder
+      - land
+      - contract
+      - repair
+      - guild
+      - rtp
+
+rtp:
+  radius-min: 200
+  radius-max: 1000
+  max-attempts: 10
+  cooldown-seconds: 60

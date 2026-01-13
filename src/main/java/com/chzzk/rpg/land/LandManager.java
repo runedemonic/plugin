@@ -63,10 +63,18 @@ public class LandManager {
     }
 
     public void buyClaim(Player player, Chunk chunk) {
+        if (!plugin.getCompatibilityManager().isLandClaimAllowed(chunk.getWorld())) {
+            player.sendMessage("§c이 월드에서는 토지를 구매할 수 없습니다.");
+            return;
+        }
         buyClaim(player, chunk, Claim.ClaimType.PERSONAL, player.getUniqueId().toString());
     }
 
     public void buyGuildClaim(Player player, Chunk chunk, int guildId) {
+        if (!plugin.getCompatibilityManager().isLandClaimAllowed(chunk.getWorld())) {
+            player.sendMessage("§c이 월드에서는 토지를 구매할 수 없습니다.");
+            return;
+        }
         if (plugin.getGuildManager() == null || plugin.getGuildManager().getGuildById(guildId) == null) {
             player.sendMessage("§cGuild not found.");
             return;
@@ -120,11 +128,21 @@ public class LandManager {
                         });
 
             } catch (SQLException e) {
+                boolean alreadyClaimed = false;
+                String sqlState = e.getSQLState();
+                if (sqlState != null && sqlState.startsWith("23")) {
+                    alreadyClaimed = true;
+                }
                 e.printStackTrace();
+                boolean claimed = alreadyClaimed;
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     Player onlinePlayer = plugin.getServer().getPlayer(playerId);
                     if (onlinePlayer != null) {
-                        onlinePlayer.sendMessage("§cError saving claim.");
+                        if (claimed) {
+                            onlinePlayer.sendMessage("§cThis land is already claimed.");
+                        } else {
+                            onlinePlayer.sendMessage("§cError saving claim.");
+                        }
                         if (economy != null) {
                             economy.deposit(onlinePlayer, CLAIM_COST);
                             onlinePlayer.sendMessage("§aRefunded $" + CLAIM_COST);

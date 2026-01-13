@@ -41,6 +41,9 @@ public class ChzzkRPG extends JavaPlugin {
     @Getter
     private com.chzzk.rpg.items.SoulboundListener soulboundListener;
 
+    @Getter
+    private com.chzzk.rpg.hooks.CompatibilityManager compatibilityManager;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -55,6 +58,7 @@ public class ChzzkRPG extends JavaPlugin {
 
         // Initialize Modules
         this.vaultHook = new com.chzzk.rpg.hooks.VaultHook(this); // Init Vault first for Economy
+        this.compatibilityManager = new com.chzzk.rpg.hooks.CompatibilityManager(this);
         this.statsManager = new StatsManager(this);
         this.cooldownManager = new com.chzzk.rpg.combat.CooldownManager();
         this.enhanceManager = new com.chzzk.rpg.enhance.EnhanceManager(this);
@@ -68,6 +72,7 @@ public class ChzzkRPG extends JavaPlugin {
         new com.chzzk.rpg.combat.RangedListener(this);
         new com.chzzk.rpg.land.LandListener(this);
         new com.chzzk.rpg.chef.ChefListener(this);
+        new com.chzzk.rpg.hooks.CommandRestrictionListener(this);
         this.soulboundListener = new com.chzzk.rpg.items.SoulboundListener(this);
 
         // Buff Cleanup Task (Every 1s)
@@ -90,6 +95,7 @@ public class ChzzkRPG extends JavaPlugin {
         getCommand("contract").setExecutor(new com.chzzk.rpg.commands.ContractCommand());
         getCommand("repair").setExecutor(new com.chzzk.rpg.commands.RepairCommand());
         getCommand("guild").setExecutor(new com.chzzk.rpg.commands.GuildCommand());
+        getCommand("rtp").setExecutor(new com.chzzk.rpg.commands.RtpCommand());
 
         getLogger().info("ChzzkRPG has been enabled!");
     }
@@ -99,6 +105,9 @@ public class ChzzkRPG extends JavaPlugin {
         // Shutdown logic
         if (soulboundListener != null) {
             soulboundListener.flushPendingReturns();
+        }
+        if (statsManager != null) {
+            statsManager.saveAllProfiles(false);
         }
         if (databaseManager != null) {
             databaseManager.close();
