@@ -63,10 +63,18 @@ public class LandManager {
     }
 
     public void buyClaim(Player player, Chunk chunk) {
+        if (!plugin.getCompatibilityManager().isLandClaimAllowed(chunk.getWorld())) {
+            player.sendMessage("§c이 월드에서는 토지를 구매할 수 없습니다.");
+            return;
+        }
         buyClaim(player, chunk, Claim.ClaimType.PERSONAL, player.getUniqueId().toString());
     }
 
     public void buyGuildClaim(Player player, Chunk chunk, int guildId) {
+        if (!plugin.getCompatibilityManager().isLandClaimAllowed(chunk.getWorld())) {
+            player.sendMessage("§c이 월드에서는 토지를 구매할 수 없습니다.");
+            return;
+        }
         if (plugin.getGuildManager() == null || plugin.getGuildManager().getGuildById(guildId) == null) {
             player.sendMessage("§cGuild not found.");
             return;
