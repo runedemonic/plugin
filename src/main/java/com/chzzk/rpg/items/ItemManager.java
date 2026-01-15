@@ -1,8 +1,13 @@
 package com.chzzk.rpg.items;
 
+import com.chzzk.rpg.cube.CubeType;
 import com.chzzk.rpg.utils.ItemBuilder;
+import com.chzzk.rpg.utils.RpgKeys;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 public class ItemManager {
 
@@ -37,6 +42,50 @@ public class ItemManager {
         pdc.set(com.chzzk.rpg.utils.RpgKeys.ITEM_TYPE, org.bukkit.persistence.PersistentDataType.STRING, "SCROLL");
         pdc.set(com.chzzk.rpg.utils.RpgKeys.SCROLL_TYPE, org.bukkit.persistence.PersistentDataType.STRING, type);
         item.setItemMeta(meta);
+
+        return item;
+    }
+
+    public static ItemStack createGradeStone(int amount) {
+        ItemStack item = new ItemBuilder(Material.AMETHYST_SHARD)
+                .name("§d등급석")
+                .lore(
+                    "§7무기 등급 승급에 사용됩니다.",
+                    "",
+                    "§7대장장이 전용"
+                )
+                .build();
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(RpgKeys.GRADE_STONE, PersistentDataType.STRING, "GRADE_STONE");
+        item.setItemMeta(meta);
+        item.setAmount(amount);
+
+        return item;
+    }
+
+    public static ItemStack createCube(CubeType type, int amount) {
+        Material material = type == CubeType.ADVANCED ? Material.ENDER_EYE : Material.ENDER_PEARL;
+
+        ItemStack item = new ItemBuilder(material)
+                .name(type.getColoredName())
+                .lore(
+                    "§7무기의 추가 옵션을 재설정합니다.",
+                    "",
+                    type.isCanRestore()
+                        ? "§6이전 옵션으로 복원 가능"
+                        : "§7되돌릴 수 없음",
+                    "",
+                    "§7사용 비용: §e" + type.getGoldCost() + "원"
+                )
+                .build();
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(RpgKeys.CUBE_TYPE, PersistentDataType.STRING, type.name());
+        item.setItemMeta(meta);
+        item.setAmount(amount);
 
         return item;
     }

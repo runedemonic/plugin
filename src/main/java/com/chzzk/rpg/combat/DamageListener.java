@@ -3,6 +3,7 @@ package com.chzzk.rpg.combat;
 import com.chzzk.rpg.ChzzkRPG;
 import com.chzzk.rpg.items.WeaponData;
 import com.chzzk.rpg.stats.PlayerProfile;
+import com.chzzk.rpg.stats.PlayerStats;
 import com.chzzk.rpg.stats.StatType;
 import java.util.Random;
 import net.kyori.adventure.text.Component;
@@ -96,22 +97,35 @@ public class DamageListener implements Listener {
         if (attackerProfile == null)
             return;
 
+        // Get weapon bonus stats (from grade system)
+        PlayerStats weaponBonusStats = wd != null ? wd.getBonusStatsAsPlayerStats() : new PlayerStats();
+
         double playerAtk = attackerProfile.getTotalStats().get(StatType.ATK);
-        // double weaponAtk already set
-        double critRate = attackerProfile.getTotalStats().get(StatType.CRIT);
-        double critDmg = Math.max(1.0, attackerProfile.getTotalStats().get(StatType.CRIT_DMG));
-        double pen = attackerProfile.getTotalStats().get(StatType.PEN);
+        // double weaponAtk already set (base + enhance bonus)
+        double weaponBonusAtk = weaponBonusStats.get(StatType.ATK);
+
+        double critRate = attackerProfile.getTotalStats().get(StatType.CRIT) + weaponBonusStats.get(StatType.CRIT);
+        double critDmg = Math.max(1.0, attackerProfile.getTotalStats().get(StatType.CRIT_DMG) + weaponBonusStats.get(StatType.CRIT_DMG));
+        double pen = attackerProfile.getTotalStats().get(StatType.PEN) + weaponBonusStats.get(StatType.PEN);
         pen = Math.max(0.0, Math.min(100.0, pen));
 
-        // Total Attack
-        double totalAtk = playerAtk + weaponAtk;
+        // Total Attack (player + weapon base/enhance + weapon bonus stats)
+        double totalAtk = playerAtk + weaponAtk + weaponBonusAtk;
 
         // 2. Calculate Defender Stats
         double def = 0;
         if (defender instanceof Player) {
-            PlayerProfile defenderProfile = plugin.getStatsManager().getProfile((Player) defender);
+            Player defenderPlayer = (Player) defender;
+            PlayerProfile defenderProfile = plugin.getStatsManager().getProfile(defenderPlayer);
             if (defenderProfile != null) {
                 def = defenderProfile.getTotalStats().get(StatType.DEF);
+
+                // Add defender's weapon bonus DEF
+                ItemStack defenderHand = defenderPlayer.getInventory().getItemInMainHand();
+                if (WeaponData.isWeapon(defenderHand)) {
+                    WeaponData defenderWd = new WeaponData(defenderHand);
+                    def += defenderWd.getBonusStatsAsPlayerStats().get(StatType.DEF);
+                }
             }
         } else {
             // Mobs: maybe custom logic later

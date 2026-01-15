@@ -10,6 +10,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -128,5 +129,21 @@ public class EnhanceGui implements RpgGui {
         if (item == null || !item.hasItemMeta())
             return false;
         return item.getItemMeta().getPersistentDataContainer().has(RpgKeys.SCROLL_TYPE, PersistentDataType.STRING);
+    }
+
+    @Override
+    public void onClose(InventoryCloseEvent event) {
+        Player player = (Player) event.getPlayer();
+        returnItem(player, inventory.getItem(SLOT_WEAPON));
+        returnItem(player, inventory.getItem(SLOT_SCROLL));
+    }
+
+    private void returnItem(Player player, ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return;
+        if (player.getInventory().firstEmpty() == -1) {
+            player.getWorld().dropItemNaturally(player.getLocation(), item);
+        } else {
+            player.getInventory().addItem(item);
+        }
     }
 }

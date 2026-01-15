@@ -4,6 +4,7 @@ import com.chzzk.rpg.ChzzkRPG;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.InventoryHolder;
 
@@ -26,6 +27,14 @@ public class GuiListener implements Listener {
         InventoryHolder holder = event.getInventory().getHolder();
         if (holder instanceof RpgGui) {
             ((RpgGui) holder).onOpen(event);
+        }
+    }
+
+    @EventHandler
+    public void onClose(InventoryCloseEvent event) {
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof RpgGui) {
+            ((RpgGui) holder).onClose(event);
         }
     }
 }

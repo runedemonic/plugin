@@ -31,6 +31,10 @@ commands:
     description: Guild Management
   rtp:
     description: Random teleport
+  grade:
+    description: Open Grade Upgrade GUI (Blacksmith only)
+  cube:
+    description: Open Cube GUI
 
 permissions:
   rpg.use:

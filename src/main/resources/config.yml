@@ -18,6 +18,138 @@ database:
   pool-size: 10
   connection-timeout: 30000
 
+# ===================================
+# Grade System Settings
+# ===================================
+grade:
+  # Success rates for grade upgrade (current grade -> next grade)
+  success-rates:
+    COMMON: 80.0      # Common -> Uncommon
+    UNCOMMON: 60.0    # Uncommon -> Rare
+    RARE: 40.0        # Rare -> Epic
+    EPIC: 20.0        # Epic -> Legendary
+    LEGENDARY: 5.0    # Legendary -> Mythic
+
+  # Blacksmith bonus: base + (level * multiplier)
+  blacksmith-bonus:
+    base: 5.0
+    per-level: 0.5
+
+  # Grade stone cost per current grade
+  stone-costs:
+    COMMON: 1
+    UNCOMMON: 2
+    RARE: 3
+    EPIC: 5
+    LEGENDARY: 10
+
+  # Gold cost per current grade
+  gold-costs:
+    COMMON: 1000
+    UNCOMMON: 5000
+    RARE: 20000
+    EPIC: 100000
+    LEGENDARY: 500000
+
+  # ATK bonus multiplier when upgrading to each grade
+  # Formula: baseAtk * multiplier
+  atk-multipliers:
+    COMMON: 1.0
+    UNCOMMON: 1.1
+    RARE: 1.25
+    EPIC: 1.5
+    LEGENDARY: 1.8
+    MYTHIC: 2.2
+
+# ===================================
+# Bonus Stat Settings (Cube & Grade)
+# ===================================
+bonus-stats:
+  # Available stat types and their weights (higher = more likely)
+  weights:
+    ATK: 30
+    DEF: 30
+    CRIT: 15
+    CRIT_DMG: 12
+    PEN: 13
+
+  # Base stat ranges (at Common grade, multiplied by grade multiplier)
+  base-ranges:
+    ATK:
+      min: 1.0
+      max: 5.0
+    DEF:
+      min: 1.0
+      max: 5.0
+    CRIT:
+      min: 0.5
+      max: 2.0
+    CRIT_DMG:
+      min: 0.02
+      max: 0.08
+    PEN:
+      min: 0.5
+      max: 2.0
+
+  # Grade multipliers for stat values
+  grade-multipliers:
+    COMMON: 1.0
+    UNCOMMON: 1.2
+    RARE: 1.5
+    EPIC: 2.0
+    LEGENDARY: 2.5
+    MYTHIC: 3.0
+
+# ===================================
+# Cube Settings
+# ===================================
+cube:
+  types:
+    BASIC:
+      gold-cost: 500
+    ADVANCED:
+      gold-cost: 2000
+
+# ===================================
+# Weapon Base ATK by Type and Grade
+# ===================================
+weapon-base-atk:
+  SWORD:
+    COMMON: 10.0
+    UNCOMMON: 12.0
+    RARE: 15.0
+    EPIC: 20.0
+    LEGENDARY: 28.0
+    MYTHIC: 40.0
+  AXE:
+    COMMON: 12.0
+    UNCOMMON: 14.5
+    RARE: 18.0
+    EPIC: 24.0
+    LEGENDARY: 33.0
+    MYTHIC: 48.0
+  RANGED:
+    COMMON: 8.0
+    UNCOMMON: 9.5
+    RARE: 12.0
+    EPIC: 16.0
+    LEGENDARY: 22.0
+    MYTHIC: 32.0
+  STAFF:
+    COMMON: 9.0
+    UNCOMMON: 11.0
+    RARE: 14.0
+    EPIC: 18.0
+    LEGENDARY: 25.0
+    MYTHIC: 36.0
+  NONE:
+    COMMON: 5.0
+    UNCOMMON: 6.0
+    RARE: 7.5
+    EPIC: 10.0
+    LEGENDARY: 14.0
+    MYTHIC: 20.0
+
 # Game Settings will go here
 
 compatibility:

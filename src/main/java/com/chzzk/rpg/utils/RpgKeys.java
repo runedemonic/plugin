@@ -18,6 +18,14 @@ public class RpgKeys {
     public static NamespacedKey ENHANCE_LEVEL;
     public static NamespacedKey OWNER_UUID;
 
+    // Grade System
+    public static NamespacedKey WEAPON_GRADE;
+    public static NamespacedKey BONUS_STATS;
+    public static NamespacedKey GRADE_STONE;
+
+    // Cube System
+    public static NamespacedKey CUBE_TYPE;
+
     private RpgKeys() {
     }
 
@@ -30,5 +38,13 @@ public class RpgKeys {
         ATTACK_SPEED = new NamespacedKey(plugin, "attack_speed");
         ENHANCE_LEVEL = new NamespacedKey(plugin, "enhance_level");
         OWNER_UUID = new NamespacedKey(plugin, "owner_uuid");
+
+        // Grade System
+        WEAPON_GRADE = new NamespacedKey(plugin, "weapon_grade");
+        BONUS_STATS = new NamespacedKey(plugin, "bonus_stats");
+        GRADE_STONE = new NamespacedKey(plugin, "grade_stone");
+
+        // Cube System
+        CUBE_TYPE = new NamespacedKey(plugin, "cube_type");
     }
 }

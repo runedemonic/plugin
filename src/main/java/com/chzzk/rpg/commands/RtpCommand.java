@@ -60,7 +60,7 @@ public class RtpCommand implements CommandExecutor {
         }
 
         Location origin = player.getLocation();
-        Location target = findSafeLocation(world, origin, minRadius, maxRadius, maxAttempts);
+        Location target = findSafeLocation(player, world, origin, minRadius, maxRadius, maxAttempts);
         if (target == null) {
             player.sendMessage("§c안전한 위치를 찾지 못했습니다. 다시 시도해주세요.");
             return true;
@@ -72,9 +72,11 @@ public class RtpCommand implements CommandExecutor {
         return true;
     }
 
-    private Location findSafeLocation(World world, Location origin, int minRadius, int maxRadius, int attempts) {
+    private Location findSafeLocation(Player player, World world, Location origin, int minRadius, int maxRadius, int attempts) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         org.bukkit.WorldBorder border = world.getWorldBorder();
+        ChzzkRPG plugin = ChzzkRPG.getInstance();
+
         for (int i = 0; i < attempts; i++) {
             double distance = random.nextDouble(minRadius, maxRadius + 1.0);
             double angle = random.nextDouble(0, Math.PI * 2);
@@ -98,7 +100,19 @@ public class RtpCommand implements CommandExecutor {
                 continue;
             }
 
-            return new Location(world, x + 0.5, y, z + 0.5);
+            Location targetLocation = new Location(world, x + 0.5, y, z + 0.5);
+
+            // Check WorldGuard protected regions
+            if (plugin.getCompatibilityManager().isInProtectedRegion(targetLocation)) {
+                continue;
+            }
+
+            // Check if player can teleport to this location
+            if (!plugin.getCompatibilityManager().canTeleportTo(player, targetLocation)) {
+                continue;
+            }
+
+            return targetLocation;
         }
         return null;
     }

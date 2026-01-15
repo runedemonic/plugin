@@ -44,6 +44,12 @@ public class ChzzkRPG extends JavaPlugin {
     @Getter
     private com.chzzk.rpg.hooks.CompatibilityManager compatibilityManager;
 
+    @Getter
+    private com.chzzk.rpg.grade.GradeManager gradeManager;
+
+    @Getter
+    private com.chzzk.rpg.cube.CubeManager cubeManager;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -66,6 +72,8 @@ public class ChzzkRPG extends JavaPlugin {
         this.landManager = new com.chzzk.rpg.land.LandManager(this);
         this.contractManager = new com.chzzk.rpg.contracts.ContractManager(this);
         this.guildManager = new com.chzzk.rpg.guilds.GuildManager(this);
+        this.gradeManager = new com.chzzk.rpg.grade.GradeManager(this);
+        this.cubeManager = new com.chzzk.rpg.cube.CubeManager(this);
 
         new com.chzzk.rpg.gui.GuiListener(this);
         new com.chzzk.rpg.combat.DamageListener(this);
@@ -87,7 +95,9 @@ public class ChzzkRPG extends JavaPlugin {
 
         getCommand("rpg").setExecutor(new com.chzzk.rpg.commands.MainCommand());
         getCommand("stats").setExecutor(new com.chzzk.rpg.commands.StatsCommand());
-        getCommand("rpgadmin").setExecutor(new com.chzzk.rpg.commands.RpgAdminCommand());
+        com.chzzk.rpg.commands.RpgAdminCommand rpgAdminCommand = new com.chzzk.rpg.commands.RpgAdminCommand();
+        getCommand("rpgadmin").setExecutor(rpgAdminCommand);
+        getCommand("rpgadmin").setTabCompleter(rpgAdminCommand);
         getCommand("enhance").setExecutor(new com.chzzk.rpg.commands.EnhanceCommand());
         getCommand("job").setExecutor(new com.chzzk.rpg.commands.JobCommand());
         getCommand("builder").setExecutor(new com.chzzk.rpg.commands.BuilderCommand());
@@ -96,6 +106,8 @@ public class ChzzkRPG extends JavaPlugin {
         getCommand("repair").setExecutor(new com.chzzk.rpg.commands.RepairCommand());
         getCommand("guild").setExecutor(new com.chzzk.rpg.commands.GuildCommand());
         getCommand("rtp").setExecutor(new com.chzzk.rpg.commands.RtpCommand());
+        getCommand("grade").setExecutor(new com.chzzk.rpg.commands.GradeCommand());
+        getCommand("cube").setExecutor(new com.chzzk.rpg.commands.CubeCommand());
 
         getLogger().info("ChzzkRPG has been enabled!");
     }

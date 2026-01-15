@@ -19,6 +19,8 @@ public class CompatibilityManager {
     private final boolean worldGuardEnabled;
     private Method worldGuardIsEnabled;
     private Method worldGuardIsCommandAllowed;
+    private Method worldGuardCanTeleportTo;
+    private Method worldGuardIsInProtectedRegion;
 
     @Getter
     private final boolean luckPermsEnabled;
@@ -48,6 +50,8 @@ public class CompatibilityManager {
             Object hook = hookClass.getConstructor(ChzzkRPG.class).newInstance(plugin);
             worldGuardIsEnabled = hookClass.getMethod("isEnabled");
             worldGuardIsCommandAllowed = hookClass.getMethod("isCommandAllowed", Player.class, Location.class);
+            worldGuardCanTeleportTo = hookClass.getMethod("canTeleportTo", Player.class, Location.class);
+            worldGuardIsInProtectedRegion = hookClass.getMethod("isInProtectedRegion", Location.class);
             return hook;
         } catch (ClassNotFoundException
                 | InstantiationException
@@ -134,6 +138,38 @@ public class CompatibilityManager {
             return result instanceof Boolean && (Boolean) result;
         } catch (IllegalAccessException | InvocationTargetException e) {
             plugin.getLogger().warning("WorldGuard status check failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a player can teleport to a location (WorldGuard ENTRY/BUILD flags).
+     */
+    public boolean canTeleportTo(Player player, Location location) {
+        if (!worldGuardEnabled || worldGuardHook == null || worldGuardCanTeleportTo == null) {
+            return true;
+        }
+        try {
+            Object result = worldGuardCanTeleportTo.invoke(worldGuardHook, player, location);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            plugin.getLogger().warning("WorldGuard teleport check failed: " + e.getMessage());
+            return true;
+        }
+    }
+
+    /**
+     * Checks if a location is inside any WorldGuard protected region.
+     */
+    public boolean isInProtectedRegion(Location location) {
+        if (!worldGuardEnabled || worldGuardHook == null || worldGuardIsInProtectedRegion == null) {
+            return false;
+        }
+        try {
+            Object result = worldGuardIsInProtectedRegion.invoke(worldGuardHook, location);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            plugin.getLogger().warning("WorldGuard region check failed: " + e.getMessage());
             return false;
         }
     }

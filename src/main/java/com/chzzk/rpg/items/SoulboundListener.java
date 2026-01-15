@@ -1,6 +1,7 @@
 package com.chzzk.rpg.items;
 
 import com.chzzk.rpg.ChzzkRPG;
+import com.chzzk.rpg.gui.RpgGui;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -120,6 +121,11 @@ public class SoulboundListener implements Listener {
             return;
         }
 
+        // Allow soulbound items in RPG GUIs (Enhance, Grade, Cube, etc.)
+        if (event.getInventory().getHolder() instanceof RpgGui) {
+            return;
+        }
+
         Player player = (Player) event.getWhoClicked();
         boolean clickedPlayerInventory = event.getClickedInventory() instanceof PlayerInventory;
         boolean clickedTopInventory = event.getClickedInventory() != null && !clickedPlayerInventory;
@@ -210,6 +216,11 @@ public class SoulboundListener implements Listener {
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
+        // Allow soulbound items in RPG GUIs
+        if (event.getInventory().getHolder() instanceof RpgGui) {
+            return;
+        }
+
         ItemStack item = event.getOldCursor();
         if (!WeaponData.isWeapon(item)) {
             return;
