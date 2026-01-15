@@ -128,12 +128,36 @@
 
 ### 데미지 계산 공식
 
+**플레이어 → 몹/플레이어:**
 ```
 1. totalAtk = 플레이어 ATK + 무기 ATK + 강화 보너스
 2. effectiveDef = 방어력 × (1 - 관통력/100)
 3. baseDamage = max(1.0, totalAtk - max(0, effectiveDef))
 4. finalDamage = baseDamage × critDmg (크리티컬 발생 시)
 ```
+
+**몹 → 플레이어 (MythicMobs 호환):**
+```
+1. originalDamage = 몹의 공격력 (MythicMobs 포함)
+2. damageReduction = 100 / (100 + DEF)
+3. finalDamage = max(1.0, originalDamage × damageReduction)
+```
+
+**DEF 효율표:**
+
+| DEF | 데미지 감소율 |
+|-----|---------------|
+| 0 | 0% |
+| 50 | 33% |
+| 100 | 50% |
+| 200 | 67% |
+| 300 | 75% |
+
+### MythicMobs 연동
+
+- MythicMobs 몹이 플레이어를 공격하면 자동으로 DEF 적용
+- MythicMobs의 커스텀 데미지도 감소 처리됨
+- 액션바로 받은 데미지와 DEF 감소량 표시
 
 ### 공격 쿨다운
 
