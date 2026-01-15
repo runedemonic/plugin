@@ -43,6 +43,12 @@ public class DamageListener implements Listener {
             }
         }
 
+        // Handle Mob -> Player damage (DEF application)
+        if (attackerPlayer == null && defender instanceof Player) {
+            handleMobToPlayerDamage(event, (Player) defender);
+            return;
+        }
+
         if (attackerPlayer == null)
             return;
 
@@ -137,6 +143,37 @@ public class DamageListener implements Listener {
             attackerPlayer.sendActionBar(Component.text("§cCRITICAL! §f" + String.format("%.1f", finalDamage)));
         } else {
             attackerPlayer.sendActionBar(Component.text("§7Damage: §f" + String.format("%.1f", finalDamage)));
+        }
+    }
+
+    /**
+     * Handle damage from mobs (including MythicMobs) to players.
+     * Applies player's DEF stat to reduce incoming damage.
+     */
+    private void handleMobToPlayerDamage(EntityDamageByEntityEvent event, Player defender) {
+        PlayerProfile defenderProfile = plugin.getStatsManager().getProfile(defender);
+        if (defenderProfile == null)
+            return;
+
+        double def = defenderProfile.getTotalStats().get(StatType.DEF);
+        if (def <= 0)
+            return;
+
+        double originalDamage = event.getDamage();
+
+        // DEF reduces damage: finalDamage = originalDamage * (100 / (100 + DEF))
+        // This formula ensures DEF has diminishing returns and never reduces damage to 0
+        double damageReduction = 100.0 / (100.0 + def);
+        double finalDamage = Math.max(1.0, originalDamage * damageReduction);
+
+        event.setDamage(finalDamage);
+
+        // Show damage reduction indicator
+        double reduced = originalDamage - finalDamage;
+        if (reduced > 0.1) {
+            defender.sendActionBar(Component.text(
+                    "§7Received: §c" + String.format("%.1f", finalDamage) +
+                            " §8(§a-" + String.format("%.1f", reduced) + " DEF§8)"));
         }
     }
 }
